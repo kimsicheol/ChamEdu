@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v14</div>
+    <div class="step-badge">참교육 v15</div>
   </header>
 
   <div class="toolbar">
@@ -353,7 +353,7 @@
   const tmpCanvas=document.createElement("canvas"), tmpCtx=tmpCanvas.getContext("2d");
 
   let faceLandmarker=null, runningMode=null, segmenter=null, segMode=null;
-  let hairLayer=null, avgSkin=null, avgHair=null, photoGray=false, photoEarrings=null, photoHairPoly=null;
+  let hairLayer=null, avgSkin=null, avgHair=null, photoGray=false, photoEarrings=null, photoHairPoly=null, __beard=null;
   let hairLive=null, segTick=0; const SEG_EVERY=4;
   const segCv=document.createElement("canvas"), segCtx=segCv.getContext("2d");
   let mode="photo", hand="normal", ended=false;
@@ -1106,12 +1106,27 @@
     };
     eye(eyeLIdx,"L"); eye(eyeRIdx,"R");
 
-    // ===== 7) 코 (콧대 하이라이트 + 콧방울 + 끝 그림자) =====
+    // 6.5) 수염(사진에서 감지된 경우) — 코·입 선보다 먼저 깔기
+    try{ drawBeardOn(ctx, P, map, fW, fH, lw, __beard); }catch(_){}
+    // ===== 7) 코 — 실측 비율로 개인차 반영(폭·길이·코끝·콧방울) =====
     const nbTop=map(P[168]), nTip=map(P[4]), nL=map(P[98]), nR=map(P[327]), n2=map(P[2]);
-    ctx.save(); ctx.globalAlpha=0.5*st.shade; ctx.strokeStyle=skinHi; ctx.lineWidth=lw*1.6; ctx.beginPath(); ctx.moveTo(nbTop.x,nbTop.y); ctx.lineTo(nTip.x, nTip.y-fH*0.02); ctx.stroke(); ctx.restore();
-    ctx.save(); ctx.globalAlpha=0.4*st.shade; ctx.fillStyle=skinSh; ctx.beginPath(); ctx.ellipse(nTip.x, nTip.y+fH*0.01, fW*0.05, fH*0.035,0,0,Math.PI*2); ctx.fill(); ctx.restore();
-    ctx.strokeStyle=skinSh2; ctx.lineWidth=lw*1.0; ctx.beginPath(); ctx.moveTo(nL.x,nL.y-fH*0.01); ctx.quadraticCurveTo(n2.x,n2.y+fH*0.01,nR.x,nR.y-fH*0.01); ctx.stroke();
-    ctx.fillStyle=skinSh2; for(const p of [nL,nR]){ ctx.beginPath(); ctx.ellipse(p.x,p.y,fW*0.012,fH*0.01,0,0,Math.PI*2); ctx.fill(); }
+    const nW=Math.max(fW*0.06, Math.hypot(nR.x-nL.x, nR.y-nL.y));               // 콧방울 폭
+    const nLen=Math.max(fH*0.06, Math.hypot(nTip.x-nbTop.x, nTip.y-nbTop.y));   // 콧대 길이
+    const wide=Math.max(0.6,Math.min(1.7, nW/(fW*0.16)));   // >1 넓은 코
+    const long=Math.max(0.6,Math.min(1.7, nLen/(fH*0.20))); // >1 긴 코
+    const nMidX=(nbTop.x+nTip.x)/2;
+    ctx.save(); ctx.lineCap="round";
+    ctx.globalAlpha=0.5*st.shade; ctx.strokeStyle=skinHi; ctx.lineWidth=lw*(1.3+0.6*wide);
+    ctx.beginPath(); ctx.moveTo(nbTop.x,nbTop.y); ctx.quadraticCurveTo(nMidX,(nbTop.y+nTip.y)/2,nTip.x,nTip.y-fH*0.02); ctx.stroke();
+    ctx.globalAlpha=0.28*st.shade*long; ctx.strokeStyle=skinSh2; ctx.lineWidth=lw*0.9;
+    ctx.beginPath(); ctx.moveTo(nbTop.x-nW*0.18,nbTop.y); ctx.quadraticCurveTo(nMidX-nW*0.22,(nbTop.y+nTip.y)/2,nTip.x-nW*0.16,nTip.y); ctx.stroke();
+    ctx.restore();
+    ctx.save(); ctx.globalAlpha=0.42*st.shade; ctx.fillStyle=skinSh; ctx.beginPath(); ctx.ellipse(nTip.x, nTip.y+fH*0.008, nW*0.40, nLen*0.18,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+    ctx.strokeStyle=skinSh2; ctx.lineCap="round"; ctx.lineWidth=lw*(0.9+0.3*wide);
+    ctx.beginPath(); ctx.moveTo(nTip.x-nW*0.10, nTip.y-fH*0.004); ctx.quadraticCurveTo(nL.x+nW*0.05, nL.y-nLen*0.10, nL.x, nL.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(nTip.x+nW*0.10, nTip.y-fH*0.004); ctx.quadraticCurveTo(nR.x-nW*0.05, nR.y-nLen*0.10, nR.x, nR.y); ctx.stroke();
+    ctx.lineWidth=lw*0.85; ctx.beginPath(); ctx.moveTo(nL.x,nL.y); ctx.quadraticCurveTo(n2.x,n2.y+fH*0.012*long,nR.x,nR.y); ctx.stroke();
+    ctx.fillStyle=skinSh2; const noR=nW*0.085; for(const p of [nL,nR]){ ctx.beginPath(); ctx.ellipse(p.x,p.y+fH*0.002,noR,noR*0.72,0,0,Math.PI*2); ctx.fill(); }
 
     // ===== 8) 입 (윗/아랫입술 분리 + 큐피드보우 + 그라데이션) =====
     const lipPts=OUTER_LIP.map(i=>map(P[i]));
@@ -1153,6 +1168,46 @@
     ctx.strokeStyle=hairHi; ctx.lineWidth=u*1.3; ctx.globalAlpha=0.55;
     for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(C.x+i*fW*0.12-fW*0.05, minY-fH*0.02); ctx.quadraticCurveTo(C.x+i*fW*0.16, minY-fH*0.12, C.x+i*fW*0.2+fW*0.06, minY-fH*0.02); ctx.stroke(); }
     ctx.globalAlpha=1; }
+  }
+  function detectBeard(ctx, lm, W, H){
+    if(!lm) return null;
+    const px=(i)=>({x:Math.round(lm[i].x*W), y:Math.round(lm[i].y*H)});
+    const samp=(p,rad)=>{ rad=rad||4; const x0=Math.max(0,p.x-rad), y0=Math.max(0,p.y-rad); const w=Math.min(rad*2+1,W-x0), h=Math.min(rad*2+1,H-y0); if(w<=0||h<=0) return null;
+      const d=ctx.getImageData(x0,y0,w,h).data; let r=0,g=0,b=0,n=0; for(let k=0;k<d.length;k+=4){ r+=d[k]; g+=d[k+1]; b+=d[k+2]; n++; } if(!n) return null; r/=n;g/=n;b/=n; return {r,g,b,lum:0.299*r+0.587*g+0.114*b}; };
+    const region=(idxs)=>{ const ss=idxs.filter(i=>lm[i]).map(i=>samp(px(i),4)).filter(Boolean); if(!ss.length) return null;
+      const lum=ss.reduce((a,c)=>a+c.lum,0)/ss.length, r=ss.reduce((a,c)=>a+c.r,0)/ss.length, g=ss.reduce((a,c)=>a+c.g,0)/ss.length, b=ss.reduce((a,c)=>a+c.b,0)/ss.length; return {lum,rgb:[Math.round(r),Math.round(g),Math.round(b)]}; };
+    const skin=region([117,346,50,280,205,425]); if(!skin) return null; const skinLum=skin.lum;
+    const inten=(o)=>{ if(!o) return 0; const dr=Math.max(0,1-o.lum/(skinLum+1e-3)); return Math.min(1,Math.max(0,(dr-0.16)/0.5)); };
+    const must=region([164,167,393,92,322,2]); const chin=region([200,199,175,18,83,313]);
+    const jawL=region([135,138,172,136,150]); const jawR=region([364,367,397,365,379]);
+    const m=inten(must), c=inten(chin), jl=inten(jawL), jr=inten(jawR);
+    if(Math.max(m,c,jl,jr)<0.12) return null;
+    const cand=[[m,must],[c,chin],[jl,jawL],[jr,jawR]].filter(x=>x[1]).sort((a,b)=>b[0]-a[0]);
+    const rgb=cand.length? cand[0][1].rgb : [60,50,45];
+    return {must:m, chin:c, jaw:(jl+jr)/2, rgb};
+  }
+  function drawBeardOn(ctx, P, map, fW, fH, lw, beard){
+    if(!beard) return; const col=beard.rgb||[55,45,40]; const rgba=(a)=>`rgba(${col[0]},${col[1]},${col[2]},${a})`;
+    const lc=map(P[61]), rc=map(P[291]), n2=map(P[2]), ul=map(P[0]), low=map(P[17]);
+    const jawIdx=[58,172,136,150,149,176,148,152,377,400,378,379,365,397,288];
+    const jl=jawIdx.filter(i=>P[i]).map(i=>map(P[i]));
+    if(jl.length>=5 && (beard.jaw>0.12||beard.chin>0.12)){
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(jl[0].x,jl[0].y); for(let i=1;i<jl.length;i++) ctx.lineTo(jl[i].x,jl[i].y);
+      ctx.lineTo(rc.x,rc.y+fH*0.015); ctx.lineTo(low.x,low.y+fH*0.01); ctx.lineTo(lc.x,lc.y+fH*0.015); ctx.closePath(); ctx.clip();
+      let bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9; for(const q of jl){bx0=Math.min(bx0,q.x);by0=Math.min(by0,q.y);bx1=Math.max(bx1,q.x);by1=Math.max(by1,q.y);} by1=Math.max(by1,rc.y,lc.y);
+      const inten=Math.max(beard.jaw,beard.chin);
+      ctx.globalAlpha=Math.min(0.6,0.16+0.5*inten); ctx.fillStyle=rgba(1); ctx.fillRect(bx0-5,by0-5,(bx1-bx0)+10,(by1-by0)+10);
+      ctx.globalAlpha=Math.min(0.6,0.26+0.4*inten); ctx.fillStyle=rgba(1);
+      const step=Math.max(3,fW*0.02), dot=Math.max(0.7,fW*0.0055);
+      for(let y=by0;y<by1;y+=step) for(let x=bx0;x<bx1;x+=step){ ctx.beginPath(); ctx.arc(x+(Math.random()-0.5)*step,y+(Math.random()-0.5)*step,dot*(0.6+Math.random()),0,Math.PI*2); ctx.fill(); }
+      ctx.restore();
+    }
+    if(beard.must>0.13){
+      ctx.save(); ctx.globalAlpha=Math.min(0.85,0.26+0.55*beard.must); ctx.fillStyle=rgba(1);
+      ctx.beginPath(); ctx.moveTo(lc.x,lc.y-fH*0.004); ctx.quadraticCurveTo(n2.x,n2.y+fH*0.004,rc.x,rc.y-fH*0.004);
+      ctx.quadraticCurveTo(n2.x,ul.y-fH*0.004,lc.x,lc.y-fH*0.004); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
   }
   function featurePts(P, map){
     const avg=(idxs)=>{let x=0,y=0; for(const i of idxs){const q=map(P[i]); x+=q.x;y+=q.y;} return {x:x/idxs.length,y:y/idxs.length};};
@@ -1630,7 +1685,7 @@
   async function handleFile(file, forced=null){
     if(!file||!file.type.startsWith("image/")){ setStatus("fail","이미지 파일만 가능"); return; }
     lastPhotoFile=file;
-    setStatus("loading","분석 엔진 준비 중…"); dentL=dentR=0; ended=false; hairLayer=null; avgSkin=null; avgHair=null; photoGray=false; photoEarrings=null; photoHairPoly=null; photoLineArt=null; lineSrc=null; lineMul=1; exagMul=1; try{el("lineRange").value=50; el("exagRange").value=50;}catch(_){}
+    setStatus("loading","분석 엔진 준비 중…"); dentL=dentR=0; ended=false; hairLayer=null; avgSkin=null; avgHair=null; photoGray=false; photoEarrings=null; photoHairPoly=null; __beard=null; photoLineArt=null; lineSrc=null; lineMul=1; exagMul=1; try{el("lineRange").value=50; el("exagRange").value=50;}catch(_){}
     if(!(await ensureEngine()) || !faceLandmarker){ setStatus("fail","분석 엔진을 불러오지 못했습니다. 네트워크 확인 후 새로고침 해주세요."); return; }
     let src;
     try{ setStatus("loading","이미지 불러오는 중…"); src=await loadOriented(file); }
@@ -1687,7 +1742,7 @@
       el("photoCtl").classList.add("show"); setStatus("fail", forced!=null? "이 각도에선 얼굴 인식이 약해요 — 🔄 회전을 한 번 더 눌러보세요." : "얼굴을 찾지 못했어요. 얼굴이 크게·정면으로 나온 밝은 사진을 써보세요.");
       { const od=el("odbg"); if(od){ od.style.display=DBG?"block":"none"; od.textContent="🔧 "+(__orientDbg||"?")+" · rot"+detRot+" · 얼굴없음"; } } return;
     }
-    photoLM=res.faceLandmarks[0]; faceFound=true; bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
+    photoLM=res.faceLandmarks[0]; faceFound=true; try{ __beard=detectBeard(tmpCtx, photoLM, WW, WH); }catch(_){ __beard=null; } bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
     setStatus("ok","캐리커쳐 생성 완료"+(detRot?(" · 자동회전 "+detRot+"°"):"")+" — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show"); updateLineCtl();
     { const od=el("odbg"); if(od){ od.style.display=DBG?"block":"none"; od.textContent="🔧 "+(__orientDbg||"?")+" · work"+bw+"x"+bh+" · rot"+detRot+" · yaw"+(__lastYaw||0).toFixed(2)+" · "+(__faceDeleg||"?"); } }
   }
