@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v8</div>
+    <div class="step-badge">참교육 v9</div>
   </header>
 
   <div class="toolbar">
@@ -218,6 +218,7 @@
         </div>
         <div class="countdown hidden" id="countdown"><b id="cdTime">30.0</b><span>초 · 현재 <b id="cdCount">0</b>회</span></div>
         <div class="photoctl" id="photoCtl">
+          <button id="rotPhoto">🔄 회전</button>
           <button id="zoomOut">－</button>
           <button id="zoomFit">맞춤</button>
           <button id="zoomIn">＋</button>
@@ -358,6 +359,7 @@
   let mode="photo", hand="normal", ended=false;
   let cheekL=null, cheekR=null, noseP=null, mouthP=null, faceFound=false, cheekR_px=58;
   let yawHintOn=false, __lastYaw=0;
+  let lastPhotoFile=null, forcedRot=null;
   let rafId=null, lastVideoTime=-1, texDirty=false;
   let total=0, combo=0, best=0, lastHit=0, alt=0;
   const effects=[], warps=[];
@@ -1620,8 +1622,9 @@
     faceBox={x0:0,y0:0,x1:PW,y1:PH};
   }
   function fitPortrait(){ pview.A=WW/WH; setDispForAspect(pview.A); pview.cx=WW/2; pview.cy=WH/2; pview.hh=WH/2; pview.hhMin=Math.max(20,WH*0.18); pview.hhMax=WH/2; setSize(pview.dispW,pview.dispH); setStageAspect(pview.A); applyPhotoView(); }
-  async function handleFile(file){
+  async function handleFile(file, forced=null){
     if(!file||!file.type.startsWith("image/")){ setStatus("fail","이미지 파일만 가능"); return; }
+    lastPhotoFile=file;
     setStatus("loading","분석 엔진 준비 중…"); dentL=dentR=0; ended=false; hairLayer=null; avgSkin=null; avgHair=null; photoGray=false; photoEarrings=null; photoHairPoly=null; photoLineArt=null; lineSrc=null; lineMul=1; exagMul=1; try{el("lineRange").value=50; el("exagRange").value=50;}catch(_){}
     if(!(await ensureEngine()) || !faceLandmarker){ setStatus("fail","분석 엔진을 불러오지 못했습니다. 네트워크 확인 후 새로고침 해주세요."); return; }
     let src;
@@ -1644,13 +1647,17 @@
       return vspan + (eyeDX-eyeDY)*1.4; }; // 눈이 수평(정방향)=가산, 위아래로 섬(옆으로 누움)=감점 → 저화질·작은 사진에 강함
     let detRot=0;
     try{ await ensureMode("IMAGE");
-      // 정방향(0°)을 우선 검출 — 충분히 똑바르면 그대로 사용
-      drawRot(0); res=faceLandmarker.detect(tmpCanvas);
-      const up0 = hasFace(res)? upScore(res.faceLandmarks[0]) : -9;
-      if(!(hasFace(res) && up0>0.08)){ // 정방향이 불확실할 때만 4방향 탐색(정방향에 +0.15 보너스로 오판 방지)
-        let best = hasFace(res)? {deg:0, r:res, up:up0+0.15} : null;
-        for(const deg of [90,270,180]){ drawRot(deg); const r=faceLandmarker.detect(tmpCanvas); if(hasFace(r)){ const up=upScore(r.faceLandmarks[0]); if(!best||up>best.up) best={deg, r, up}; } }
-        if(best){ detRot=best.deg; drawRot(best.deg); res=best.r; } else { drawRot(0); res=null; }
+      if(forced!=null){ // '회전' 버튼으로 지정한 각도 사용(자동 추정 무시)
+        detRot=(((forced%360)+360)%360); drawRot(detRot); res=faceLandmarker.detect(tmpCanvas);
+      } else {
+        // 정방향(0°)을 우선 검출 — 충분히 똑바르면 그대로 사용
+        drawRot(0); res=faceLandmarker.detect(tmpCanvas);
+        const up0 = hasFace(res)? upScore(res.faceLandmarks[0]) : -9;
+        if(!(hasFace(res) && up0>0.08)){ // 정방향이 불확실할 때만 4방향 탐색(정방향에 +0.15 보너스로 오판 방지)
+          let best = hasFace(res)? {deg:0, r:res, up:up0+0.15} : null;
+          for(const deg of [90,270,180]){ drawRot(deg); const r=faceLandmarker.detect(tmpCanvas); if(hasFace(r)){ const up=upScore(r.faceLandmarks[0]); if(!best||up>best.up) best={deg, r, up}; } }
+          if(best){ detRot=best.deg; drawRot(best.deg); res=best.r; } else { drawRot(0); res=null; }
+        }
       }
     }
     catch(e){ console.warn("detect 실패", e); setStatus("fail","얼굴 분석에 실패했습니다. 새로고침 후 다시 시도해 주세요."); try{ tmpCtx.setTransform(1,0,0,1,0,0); tmpCtx.clearRect(0,0,tmpCanvas.width,tmpCanvas.height); }catch(_){} return; }
@@ -1672,7 +1679,7 @@
     if(!res||!res.faceLandmarks||!res.faceLandmarks.length){
       faceFound=false; photoLM=null; cheekFullL=cheekFullR=noseFull=mouthFull=null;
       workCanvas.width=WW; workCanvas.height=WH; workCtx.fillStyle=PAL.paper; workCtx.fillRect(0,0,WW,WH); pview.A=WW/WH; setDispForAspect(pview.A); pview.cx=WW/2; pview.cy=WH/2; pview.hh=WH/2; pview.hhMin=20; pview.hhMax=WH/2; setSize(pview.dispW,pview.dispH); setStageAspect(pview.A); applyPhotoView();
-      el("photoCtl").classList.add("show"); setStatus("fail","얼굴을 찾지 못했어요. 얼굴이 크게·정면으로 나온 밝은 사진을 써보세요.");
+      el("photoCtl").classList.add("show"); setStatus("fail", forced!=null? "이 각도에선 얼굴 인식이 약해요 — 🔄 회전을 한 번 더 눌러보세요." : "얼굴을 찾지 못했어요. 얼굴이 크게·정면으로 나온 밝은 사진을 써보세요.");
       { const od=el("odbg"); if(od){ od.style.display="block"; od.textContent="🔧 "+(__orientDbg||"?")+" · rot"+detRot+" · 얼굴없음"; } } return;
     }
     photoLM=res.faceLandmarks[0]; faceFound=true; bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
@@ -1786,11 +1793,12 @@
   el("mPhoto").addEventListener("click",()=>switchMode("photo"));
   el("slapL").addEventListener("click",()=>slap("L"));
   el("slapR").addEventListener("click",()=>slap("R"));
-  el("file").addEventListener("change",e=>handleFile(e.target.files[0]));
+  el("file").addEventListener("change",e=>{ forcedRot=null; handleFile(e.target.files[0]); });
+  el("rotPhoto").addEventListener("click",()=>{ if(!lastPhotoFile) return; forcedRot=(((forcedRot==null?0:forcedRot)+90)%360); handleFile(lastPhotoFile, forcedRot); });
   el("dropzone").addEventListener("click",()=>el("file").click());
   ["dragenter","dragover"].forEach(ev=>el("dropzone").addEventListener(ev,e=>{e.preventDefault(); el("dropzone").classList.add("drag");}));
   ["dragleave","drop"].forEach(ev=>el("dropzone").addEventListener(ev,e=>{e.preventDefault(); el("dropzone").classList.remove("drag");}));
-  el("dropzone").addEventListener("drop",e=>{ const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handleFile(f); });
+  el("dropzone").addEventListener("drop",e=>{ const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f){ forcedRot=null; handleFile(f); } });
   window.addEventListener("keydown",e=>{ if(e.repeat) return; if(e.key==="f"||e.key==="F") slap("L"); else if(e.key==="j"||e.key==="J") slap("R"); else if(e.code==="Space"){ e.preventDefault(); slap((alt%2)?"L":"R"); } });
   el("zoomIn").addEventListener("click",()=>zoomBy(1.2));
   el("zoomOut").addEventListener("click",()=>zoomBy(1/1.2));
