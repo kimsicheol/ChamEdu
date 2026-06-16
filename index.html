@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v9</div>
+    <div class="step-badge">참교육 v11</div>
   </header>
 
   <div class="toolbar">
@@ -359,7 +359,7 @@
   let mode="photo", hand="normal", ended=false;
   let cheekL=null, cheekR=null, noseP=null, mouthP=null, faceFound=false, cheekR_px=58;
   let yawHintOn=false, __lastYaw=0;
-  let lastPhotoFile=null, forcedRot=null;
+  let lastPhotoFile=null, forcedRot=null, __faceDeleg="";
   let rafId=null, lastVideoTime=-1, texDirty=false;
   let total=0, combo=0, best=0, lastHit=0, alt=0;
   const effects=[], warps=[];
@@ -672,9 +672,9 @@
     const _mids=[lm[1],lm[168],lm[152]].filter(q=>q).map(q=>map(q));
     const faceMidX=_mids.length? _mids.reduce((a,q)=>a+q.x,0)/_mids.length : Cx;
     const faceYaw=(()=>{ const dl=faceMidX-nx, dr=xx-faceMidX; return (dl-dr)/Math.max(1,(dl+dr)); })(); // <0 좌측 압축, >0 우측 압축
-    const Q2SKEW=0.55; // 측면 비대칭 강도(0=끄기)
-    const warp=(p)=>{ let x=Cx+(p.x-Cx)*sxAt(p.y); const ny=Math.abs(faceYaw);
-      if(ny>0.05){ const side=(x-faceMidX)*Math.sign(faceYaw); x += (x-faceMidX)*((side>0? -0.30:0.16)*ny*Q2SKEW); } // far측 압축·near측 확장
+    const Q2SKEW=0.30; // 측면 비대칭 강도(0=끄기) — 측면 사진 왜곡 완화
+    const warp=(p)=>{ let x=Cx+(p.x-Cx)*sxAt(p.y); const ny=Math.min(0.45,Math.abs(faceYaw));
+      if(ny>0.05){ const side=(x-faceMidX)*Math.sign(faceYaw); x += (x-faceMidX)*((side>0? -0.18:0.10)*ny*Q2SKEW); } // far측 압축·near측 확장(완화)
       return {x, y:p.y}; };
     const warpMap=(p)=>warp(map(p)), wmap=(i)=>warp(map(lm[i]));
     const closed=(pp)=>{ const n=pp.length; if(n<3){pp.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));return;} ctx.moveTo((pp[n-1].x+pp[0].x)/2,(pp[n-1].y+pp[0].y)/2); for(let i=0;i<n;i++){const a=pp[i],b=pp[(i+1)%n]; ctx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2);} ctx.closePath(); };
@@ -1202,8 +1202,10 @@
   async function initEngine(){ try{
     const r=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm");
     const mkFace=(delegate)=>FaceLandmarker.createFromOptions(r,{ baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", delegate }, runningMode:"VIDEO", numFaces:1, minFaceDetectionConfidence:0.3, minFacePresenceConfidence:0.3, minTrackingConfidence:0.3 });
-    try{ faceLandmarker=await mkFace("GPU"); }
-    catch(ge){ console.warn("FaceLandmarker GPU 실패 → CPU 재시도", ge); faceLandmarker=await mkFace("CPU"); }
+    const __isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test((navigator.userAgent||""));
+    const __facePref=__isMobile?"CPU":"GPU"; // 모바일/인앱 브라우저는 GPU 얼굴인식이 엉뚱한 좌표를 내는 일이 잦아 CPU로(정확도 우선)
+    try{ faceLandmarker=await mkFace(__facePref); __faceDeleg=__facePref.toLowerCase(); }
+    catch(ge){ console.warn("FaceLandmarker "+__facePref+" 실패 → 대체", ge); const alt=__facePref==="GPU"?"CPU":"GPU"; faceLandmarker=await mkFace(alt); __faceDeleg=alt.toLowerCase(); }
     runningMode="VIDEO"; engineReady=true;
     // 머리카락/피부 분할기(멀티클래스 셀피) — GPU→CPU 폴백
     const mkSeg=(delegate)=>ImageSegmenter.createFromOptions(r,{ baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite", delegate }, runningMode:"IMAGE", outputCategoryMask:true, outputConfidenceMasks:false });
@@ -1684,7 +1686,7 @@
     }
     photoLM=res.faceLandmarks[0]; faceFound=true; bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
     setStatus("ok","캐리커쳐 생성 완료"+(detRot?(" · 자동회전 "+detRot+"°"):"")+" — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show"); updateLineCtl();
-    { const od=el("odbg"); if(od){ od.style.display="block"; od.textContent="🔧 "+(__orientDbg||"?")+" · work"+bw+"x"+bh+" · rot"+detRot+" · yaw"+(__lastYaw||0).toFixed(2); } }
+    { const od=el("odbg"); if(od){ od.style.display="block"; od.textContent="🔧 "+(__orientDbg||"?")+" · work"+bw+"x"+bh+" · rot"+detRot+" · yaw"+(__lastYaw||0).toFixed(2)+" · "+(__faceDeleg||"?"); } }
   }
   function setDispForAspect(A){ if(A>=1){ pview.dispW=720; pview.dispH=Math.round(720/A); } else { pview.dispH=720; pview.dispW=Math.round(720*A); } }
   function fitFace(){ const fw=faceBox.x1-faceBox.x0, fh=faceBox.y1-faceBox.y0, m=0.55*Math.max(fw,fh);
