@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v11</div>
+    <div class="step-badge">참교육 v13</div>
   </header>
 
   <div class="toolbar">
@@ -360,6 +360,7 @@
   let cheekL=null, cheekR=null, noseP=null, mouthP=null, faceFound=false, cheekR_px=58;
   let yawHintOn=false, __lastYaw=0;
   let lastPhotoFile=null, forcedRot=null, __faceDeleg="";
+  const DBG=/[?&]debug=1/.test(location.search||"");  // ?debug=1 일 때만 진단줄 표시
   let rafId=null, lastVideoTime=-1, texDirty=false;
   let total=0, combo=0, best=0, lastHit=0, alt=0;
   const effects=[], warps=[];
@@ -1209,8 +1210,9 @@
     runningMode="VIDEO"; engineReady=true;
     // 머리카락/피부 분할기(멀티클래스 셀피) — GPU→CPU 폴백
     const mkSeg=(delegate)=>ImageSegmenter.createFromOptions(r,{ baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite", delegate }, runningMode:"IMAGE", outputCategoryMask:true, outputConfidenceMasks:false });
-    try{ segmenter=await mkSeg("GPU"); segMode="IMAGE"; }
-    catch(ge){ try{ segmenter=await mkSeg("CPU"); segMode="IMAGE"; }catch(se){ console.warn("segmenter init 실패 — 합성 헤어로 대체", se); segmenter=null; } }
+    const __segPref=__facePref; // 모바일/인앱 브라우저는 분할기도 GPU 마스크가 깨져 머리카락이 흩어짐 → CPU
+    try{ segmenter=await mkSeg(__segPref); segMode="IMAGE"; }
+    catch(ge){ const alt=__segPref==="GPU"?"CPU":"GPU"; try{ segmenter=await mkSeg(alt); segMode="IMAGE"; }catch(se){ console.warn("segmenter init 실패 — 합성 헤어로 대체", se); segmenter=null; } }
   }catch(e){ console.error("엔진 초기화 실패", e); engineReady=false; } }
   async function ensureEngine(){ if(engineReady) return true; if(!enginePromise) enginePromise=initEngine(); try{ await enginePromise; }catch(_){} return engineReady; }
   async function ensureMode(m){ if(runningMode===m) return; await faceLandmarker.setOptions({runningMode:m}); runningMode=m; }
@@ -1682,11 +1684,11 @@
       faceFound=false; photoLM=null; cheekFullL=cheekFullR=noseFull=mouthFull=null;
       workCanvas.width=WW; workCanvas.height=WH; workCtx.fillStyle=PAL.paper; workCtx.fillRect(0,0,WW,WH); pview.A=WW/WH; setDispForAspect(pview.A); pview.cx=WW/2; pview.cy=WH/2; pview.hh=WH/2; pview.hhMin=20; pview.hhMax=WH/2; setSize(pview.dispW,pview.dispH); setStageAspect(pview.A); applyPhotoView();
       el("photoCtl").classList.add("show"); setStatus("fail", forced!=null? "이 각도에선 얼굴 인식이 약해요 — 🔄 회전을 한 번 더 눌러보세요." : "얼굴을 찾지 못했어요. 얼굴이 크게·정면으로 나온 밝은 사진을 써보세요.");
-      { const od=el("odbg"); if(od){ od.style.display="block"; od.textContent="🔧 "+(__orientDbg||"?")+" · rot"+detRot+" · 얼굴없음"; } } return;
+      { const od=el("odbg"); if(od){ od.style.display=DBG?"block":"none"; od.textContent="🔧 "+(__orientDbg||"?")+" · rot"+detRot+" · 얼굴없음"; } } return;
     }
     photoLM=res.faceLandmarks[0]; faceFound=true; bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
     setStatus("ok","캐리커쳐 생성 완료"+(detRot?(" · 자동회전 "+detRot+"°"):"")+" — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show"); updateLineCtl();
-    { const od=el("odbg"); if(od){ od.style.display="block"; od.textContent="🔧 "+(__orientDbg||"?")+" · work"+bw+"x"+bh+" · rot"+detRot+" · yaw"+(__lastYaw||0).toFixed(2)+" · "+(__faceDeleg||"?"); } }
+    { const od=el("odbg"); if(od){ od.style.display=DBG?"block":"none"; od.textContent="🔧 "+(__orientDbg||"?")+" · work"+bw+"x"+bh+" · rot"+detRot+" · yaw"+(__lastYaw||0).toFixed(2)+" · "+(__faceDeleg||"?"); } }
   }
   function setDispForAspect(A){ if(A>=1){ pview.dispW=720; pview.dispH=Math.round(720/A); } else { pview.dispH=720; pview.dispW=Math.round(720*A); } }
   function fitFace(){ const fw=faceBox.x1-faceBox.x0, fh=faceBox.y1-faceBox.y0, m=0.55*Math.max(fw,fh);
