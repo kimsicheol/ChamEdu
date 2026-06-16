@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v5</div>
+    <div class="step-badge">참교육 v7</div>
   </header>
 
   <div class="toolbar">
@@ -1591,24 +1591,13 @@
   let __orientDbg="";
   async function loadOriented(file){
     let o=1; try{ o=await getExifOrientation(file); }catch(_){}
-    const swap=(o>=5&&o<=8);
+    // 브라우저 자동보정(from-image)본만 사용 — 수동 EXIF 회전은 일부 안드로이드 인앱 브라우저에서 '이중 회전'을 일으킴.
+    // 남은 회전은 얼굴검출 단계의 '정방향 우선 탐색'으로 교정한다.
     if(window.createImageBitmap){
-      try{
-        const raw=await createImageBitmap(file,{imageOrientation:"none"});
-        let ori=null; try{ ori=await createImageBitmap(file,{imageOrientation:"from-image"}); }catch(_){}
-        const oriDim = ori? (ori.width+"x"+ori.height) : "NA";
-        const base = "exif"+o+" raw"+raw.width+"x"+raw.height+" ori"+oriDim;
-        if(o<=1){ __orientDbg=base+" bmp-none"; return raw; }
-        if(swap && ori && ori.width===raw.height && ori.height===raw.width){ __orientDbg=base+" bmp-auto"; return ori; }
-        __orientDbg=base+" bmp-manual"; return applyExifRotation(raw,o);
-      }catch(_){}
+      try{ const bmp=await createImageBitmap(file,{imageOrientation:"from-image"}); __orientDbg="exif"+o+" bmp"+bmp.width+"x"+bmp.height; return bmp; }catch(_){}
     }
     const img=await new Promise((res,rej)=>{ const i=new Image(); i.decoding="async"; i.onload=()=>res(i); i.onerror=()=>rej(new Error("img load")); i.src=URL.createObjectURL(file); });
-    const iw=img.naturalWidth, ih=img.naturalHeight;
-    const base="exif"+o+" img"+iw+"x"+ih;
-    if(o<=1){ __orientDbg=base+" img-none"; return img; }
-    if(swap && iw<ih){ __orientDbg=base+" img-auto"; return img; }
-    __orientDbg=base+" img-manual"; return applyExifRotation(img,o);
+    __orientDbg="exif"+o+" img"+img.naturalWidth+"x"+img.naturalHeight; return img;
   }
   function bakePhotoCaricature(){
     const PWl=900, PHl=Math.round(PWl*1.3);
@@ -1640,7 +1629,10 @@
     catch(e){ console.warn(e); setStatus("fail","이미지를 열 수 없습니다. JPG/PNG 사진으로 다시 시도해 주세요(아이폰 HEIC는 '가장 호환성 높게' 설정 또는 캡처본 권장)."); return; }
     const iw=src.width||src.naturalWidth||0, ih=src.height||src.naturalHeight||0;
     if(!iw||!ih){ setStatus("fail","이미지 크기를 읽지 못했습니다. 다른 사진을 시도해 주세요."); return; }
-    const MAX=1280, sc=Math.min(1,MAX/Math.max(iw,ih)); const bw=Math.max(1,Math.round(iw*sc)), bh=Math.max(1,Math.round(ih*sc));
+    const MAX=1280, MIN=820, mx=Math.max(iw,ih);
+    const sc = mx>MAX ? MAX/mx : (mx>0 && mx<MIN ? MIN/mx : 1);   // 큰 건 축소, 작은 건 확대(작은 이미지 검출 안정화)
+    const bw=Math.max(1,Math.round(iw*sc)), bh=Math.max(1,Math.round(ih*sc));
+    try{ tmpCtx.imageSmoothingEnabled=true; tmpCtx.imageSmoothingQuality="high"; }catch(_){}
     el("dropzone").classList.remove("show"); setStatus("loading","얼굴 분석 중…");
     let res=null;
     // 회전 후보를 캔버스에 그림(90/270은 가로세로 스왑)
@@ -1651,11 +1643,11 @@
       const vspan=lm[152].y-lm[10].y, eyeTilt=Math.abs(lm[263].y-lm[33].y); return vspan - eyeTilt*1.2; };
     let detRot=0;
     try{ await ensureMode("IMAGE");
-      // EXIF로 정방향 보정된 이미지를 우선 정방향 검출 — 똑바르면 그대로 사용
+      // 정방향(0°)을 우선 검출 — 충분히 똑바르면 그대로 사용
       drawRot(0); res=faceLandmarker.detect(tmpCanvas);
-      const ok0 = hasFace(res) && upScore(res.faceLandmarks[0])>0.05;
-      if(!ok0){ // EXIF가 없거나 회전이 남은 경우에만 4방향 중 가장 똑바른 방향 탐색(폴백)
-        let best = hasFace(res)? {deg:0, r:res, up:upScore(res.faceLandmarks[0])} : null;
+      const up0 = hasFace(res)? upScore(res.faceLandmarks[0]) : -9;
+      if(!(hasFace(res) && up0>0.08)){ // 정방향이 불확실할 때만 4방향 탐색(정방향에 +0.15 보너스로 오판 방지)
+        let best = hasFace(res)? {deg:0, r:res, up:up0+0.15} : null;
         for(const deg of [90,270,180]){ drawRot(deg); const r=faceLandmarker.detect(tmpCanvas); if(hasFace(r)){ const up=upScore(r.faceLandmarks[0]); if(!best||up>best.up) best={deg, r, up}; } }
         if(best){ detRot=best.deg; drawRot(best.deg); res=best.r; } else { drawRot(0); res=null; }
       }
@@ -1684,7 +1676,7 @@
     }
     photoLM=res.faceLandmarks[0]; faceFound=true; bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
     setStatus("ok","캐리커쳐 생성 완료"+(detRot?(" · 자동회전 "+detRot+"°"):"")+" — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show"); updateLineCtl();
-    { const od=el("odbg"); if(od){ od.style.display="block"; od.textContent="🔧 "+(__orientDbg||"?")+" · rot"+detRot+" · yaw"+(__lastYaw||0).toFixed(2); } }
+    { const od=el("odbg"); if(od){ od.style.display="block"; od.textContent="🔧 "+(__orientDbg||"?")+" · work"+bw+"x"+bh+" · rot"+detRot+" · yaw"+(__lastYaw||0).toFixed(2); } }
   }
   function setDispForAspect(A){ if(A>=1){ pview.dispW=720; pview.dispH=Math.round(720/A); } else { pview.dispH=720; pview.dispW=Math.round(720*A); } }
   function fitFace(){ const fw=faceBox.x1-faceBox.x0, fh=faceBox.y1-faceBox.y0, m=0.55*Math.max(fw,fh);
