@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v15</div>
+    <div class="step-badge">참교육 v19</div>
   </header>
 
   <div class="toolbar">
@@ -353,7 +353,7 @@
   const tmpCanvas=document.createElement("canvas"), tmpCtx=tmpCanvas.getContext("2d");
 
   let faceLandmarker=null, runningMode=null, segmenter=null, segMode=null;
-  let hairLayer=null, avgSkin=null, avgHair=null, photoGray=false, photoEarrings=null, photoHairPoly=null, __beard=null;
+  let hairLayer=null, avgSkin=null, avgHair=null, photoGray=false, photoEarrings=null, photoHairPoly=null, __beard=null, __lipColor=null, __eyes=null, __brows=null;
   let hairLive=null, segTick=0; const SEG_EVERY=4;
   const segCv=document.createElement("canvas"), segCtx=segCv.getContext("2d");
   let mode="photo", hand="normal", ended=false;
@@ -1065,16 +1065,28 @@
     blush(CHEEK_A); blush(CHEEK_B);
 
     // ===== 5) 눈썹 (부드러운 테이퍼 셰이프) =====
-    const brow=(idxs)=>{ const s=[...idxs].sort((a,b)=>P[a].x-P[b].x).map(i=>map(P[i])); if(s.length<2) return;
-      const th=u*st.browW;
-      const top=s.map(p=>({x:p.x, y:p.y-th*0.5}));
-      const bot=s.map((p,i)=>{ const t=i/(s.length-1); return {x:p.x, y:p.y+th*(0.58-0.4*t)}; });
+    const brow=(idxs)=>{ const all=idxs.filter(i=>P[i]).map(i=>map(P[i])); if(all.length<2) return;
+      const s=[...all].sort((a,b)=>a.x-b.x);
+      let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9; for(const p of all){ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y; }
+      const bw=Math.max(1,maxX-minX), bth=Math.max(1,maxY-minY);
+      const thickRel=Math.max(0.55,Math.min(1.8, bth/(fH*0.045)));        // 두께(세로 스프레드)
+      const archRel=Math.max(0,Math.min(1, (((s[0].y+s[s.length-1].y)/2)-minY)/(bw*0.5+1e-3))); // 아치(끝>가운데)
+      const dark=(__brows&&typeof __brows.dark==="number")? __brows.dark : 0.6; // 짙기(사진)
+      const th=u*st.browW*(0.65+0.6*thickRel)*(0.8+0.5*dark);
+      const arch=(t)=>-archRel*bw*0.10*Math.sin(Math.PI*t)*1.25;
+      const top=s.map((p,i)=>{ const t=i/(s.length-1); return {x:p.x, y:p.y-th*0.5+arch(t)}; });
+      const bot=s.map((p,i)=>{ const t=i/(s.length-1); return {x:p.x, y:p.y+th*(0.58-0.4*t)+arch(t)}; });
       const poly=top.concat(bot.reverse());
-      ctx.fillStyle=hairSh; smoothPoly(ctx,poly); ctx.fill(); };
+      ctx.save(); ctx.globalAlpha=Math.min(1,0.68+0.32*dark); ctx.fillStyle=hairSh; smoothPoly(ctx,poly); ctx.fill();
+      if(dark>0.55){ ctx.globalAlpha=Math.min(1,0.35*dark); ctx.fillStyle=shade(hairSh,-0.22); smoothPoly(ctx,poly); ctx.fill(); }
+      ctx.restore(); };
     brow(browLIdx); brow(browRIdx);
 
     // ===== 6) 눈 (아몬드 + 홍채 그라데이션 + 캐치라이트 + 쌍꺼풀) =====
-    const eye=(idxs,side)=>{ const pts=ring(P,idxs).map(i=>map(P[i])); const c=map(centroid(P,idxs));
+    const eye=(idxs,side)=>{ const pts0=ring(P,idxs).map(i=>map(P[i])); const c=map(centroid(P,idxs));
+      let ew0=0; for(const p of pts0){ ew0=Math.max(ew0,Math.abs(p.x-c.x)); }
+      const lenDev=Math.max(0.7,Math.min(1.5,(ew0*2)/(fW*0.20))); const esx=1+(lenDev-1)*0.45; // 눈매 길이 개인차
+      const pts=pts0.map(p=>({x:c.x+(p.x-c.x)*esx, y:p.y}));
       let ew=0,eh=0; for(const p of pts){ ew=Math.max(ew,Math.abs(p.x-c.x)); eh=Math.max(eh,Math.abs(p.y-c.y)); }
       // 흰자
       ctx.fillStyle=PAL.white; smoothPoly(ctx,pts); ctx.fill();
@@ -1096,9 +1108,10 @@
       ctx.strokeStyle=PAL.line; ctx.lineWidth=lw*1.1; smoothPoly(ctx,pts); ctx.stroke();
       const topL=pts.filter(p=>p.y<=c.y).sort((a,b)=>a.x-b.x);
       if(topL.length>1){ ctx.lineWidth=lw*(st.lash?2.4:1.8); ctx.beginPath(); topL.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); }
-      // 쌍꺼풀
-      ctx.strokeStyle=skinSh; ctx.lineWidth=lw*0.7; ctx.beginPath();
-      topL.forEach((p,k)=>{ const y=p.y-eh*0.5; k?ctx.lineTo(p.x,y):ctx.moveTo(p.x,y); }); ctx.stroke();
+      // 쌍꺼풀 — 사진에서 감지된 경우만(홑꺼풀이면 생략)
+      { const cr=(__eyes&&typeof __eyes.crease==="number")? __eyes.crease : 0.5;
+        if(cr>0.18){ const off=eh*(0.42+0.5*cr); ctx.save(); ctx.globalAlpha=Math.min(1,0.4+0.6*cr); ctx.strokeStyle=skinSh; ctx.lineWidth=lw*(0.6+0.4*cr); ctx.beginPath();
+          topL.forEach((p,k)=>{ const y=p.y-off; k?ctx.lineTo(p.x,y):ctx.moveTo(p.x,y); }); ctx.stroke(); ctx.restore(); } }
       // 속눈썹(카툰)
       if(st.lash){ ctx.strokeStyle=PAL.line; ctx.lineWidth=lw*1.3; const dx=side==="L"?-1:1;
         const outer=side==="L"?pts.reduce((m,p)=>p.x<m.x?p:m,pts[0]):pts.reduce((m,p)=>p.x>m.x?p:m,pts[0]);
@@ -1108,30 +1121,54 @@
 
     // 6.5) 수염(사진에서 감지된 경우) — 코·입 선보다 먼저 깔기
     try{ drawBeardOn(ctx, P, map, fW, fH, lw, __beard); }catch(_){}
-    // ===== 7) 코 — 실측 비율로 개인차 반영(폭·길이·코끝·콧방울) =====
-    const nbTop=map(P[168]), nTip=map(P[4]), nL=map(P[98]), nR=map(P[327]), n2=map(P[2]);
+    // ===== 7) 코 — 형태 개인차(폭·길이·코끝·들창/매부리·콧구멍) + 과장 증폭 =====
+    const nbTop=map(P[168]), nMid=map(P[6]||P[197]||P[168]), nTip=map(P[4]), n2=map(P[2]), nL=map(P[98]), nR=map(P[327]);
     const nW=Math.max(fW*0.06, Math.hypot(nR.x-nL.x, nR.y-nL.y));               // 콧방울 폭
     const nLen=Math.max(fH*0.06, Math.hypot(nTip.x-nbTop.x, nTip.y-nbTop.y));   // 콧대 길이
-    const wide=Math.max(0.6,Math.min(1.7, nW/(fW*0.16)));   // >1 넓은 코
-    const long=Math.max(0.6,Math.min(1.7, nLen/(fH*0.20))); // >1 긴 코
+    const exK=Math.max(0,(exagMul||1)-1);                                       // 과장 추가분(0~1)
+    const nAmp=(dev)=>1+(dev-1)*(0.55+0.9*exK);                                 // 과장 셀수록 개성 증폭
+    const wide=nAmp(Math.max(0.55,Math.min(1.8, nW/(fW*0.17))));   // >1 넓은 코
+    const long=nAmp(Math.max(0.55,Math.min(1.8, nLen/(fH*0.21)))); // >1 긴 코
+    const alaMidY=(nL.y+nR.y)/2;
+    const u1=(alaMidY-nTip.y)/(nLen*0.5+1e-3);            // 코끝이 콧방울보다 위 → 들창
+    const u2=(alaMidY-n2.y)/(nLen*0.5+1e-3);              // 콧밑(인중상단)이 콧방울보다 위
+    const colLen=Math.hypot(nTip.x-n2.x,nTip.y-n2.y);     // 코기둥(코끝~콧밑) 길이
+    const u3=0.45-(colLen/(nW+1e-3));                     // 짧을수록 콧구멍 밑면 노출(들창)
+    const upturn=Math.max(-1,Math.min(1,(u1*0.5+u2*0.3+u3*0.5)))*(1+0.6*exK); // 콧구멍 밑면 신호 결합
+    const bow=((nMid.x-(nbTop.x+nTip.x)/2)/(nW*0.5+1e-3));         // 콧대 휨(+ 매부리쪽)
     const nMidX=(nbTop.x+nTip.x)/2;
-    ctx.save(); ctx.lineCap="round";
-    ctx.globalAlpha=0.5*st.shade; ctx.strokeStyle=skinHi; ctx.lineWidth=lw*(1.3+0.6*wide);
-    ctx.beginPath(); ctx.moveTo(nbTop.x,nbTop.y); ctx.quadraticCurveTo(nMidX,(nbTop.y+nTip.y)/2,nTip.x,nTip.y-fH*0.02); ctx.stroke();
+    ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.globalAlpha=0.5*st.shade; ctx.strokeStyle=skinHi; ctx.lineWidth=lw*(1.2+0.7*wide);
+    ctx.beginPath(); ctx.moveTo(nbTop.x,nbTop.y); ctx.quadraticCurveTo(nMidX+bow*nW*0.5*(1+exK),(nbTop.y+nTip.y)/2,nTip.x,nTip.y-fH*0.02); ctx.stroke();
     ctx.globalAlpha=0.28*st.shade*long; ctx.strokeStyle=skinSh2; ctx.lineWidth=lw*0.9;
     ctx.beginPath(); ctx.moveTo(nbTop.x-nW*0.18,nbTop.y); ctx.quadraticCurveTo(nMidX-nW*0.22,(nbTop.y+nTip.y)/2,nTip.x-nW*0.16,nTip.y); ctx.stroke();
     ctx.restore();
-    ctx.save(); ctx.globalAlpha=0.42*st.shade; ctx.fillStyle=skinSh; ctx.beginPath(); ctx.ellipse(nTip.x, nTip.y+fH*0.008, nW*0.40, nLen*0.18,0,0,Math.PI*2); ctx.fill(); ctx.restore();
-    ctx.strokeStyle=skinSh2; ctx.lineCap="round"; ctx.lineWidth=lw*(0.9+0.3*wide);
-    ctx.beginPath(); ctx.moveTo(nTip.x-nW*0.10, nTip.y-fH*0.004); ctx.quadraticCurveTo(nL.x+nW*0.05, nL.y-nLen*0.10, nL.x, nL.y); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(nTip.x+nW*0.10, nTip.y-fH*0.004); ctx.quadraticCurveTo(nR.x-nW*0.05, nR.y-nLen*0.10, nR.x, nR.y); ctx.stroke();
+    const tipCy=nTip.y+fH*0.006 - upturn*nLen*0.08;
+    const tipRX=nW*(0.34+0.12*wide+0.18*exK*Math.max(0,wide-1)); const tipRY=Math.max(fH*0.016, nLen*0.16*(0.9+0.3*long));
+    ctx.save();
+    ctx.globalAlpha=0.42*st.shade; ctx.fillStyle=skinSh; ctx.beginPath(); ctx.ellipse(nTip.x, tipCy, tipRX, tipRY,0,0,Math.PI*2); ctx.fill();
+    if(wide>1.12){ ctx.globalAlpha=0.28*st.shade; for(const q of [nL,nR]){ ctx.beginPath(); ctx.ellipse(q.x+(q===nL?1:-1)*nW*0.06, q.y-nW*0.02, nW*0.16*(wide-0.5), nW*0.13*(wide-0.5),0,0,Math.PI*2); ctx.fill(); } }
+    ctx.globalAlpha=0.5*st.shade; ctx.fillStyle=skinHi; ctx.beginPath(); ctx.ellipse(nTip.x-tipRX*0.3, tipCy-tipRY*0.35, tipRX*0.42, tipRY*0.42,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle=skinSh2; ctx.lineCap="round"; ctx.lineWidth=lw*(0.85+0.35*wide);
+    ctx.beginPath(); ctx.moveTo(nTip.x-tipRX*0.5, tipCy); ctx.quadraticCurveTo(nL.x+nW*0.05, nL.y-nLen*0.10, nL.x, nL.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(nTip.x+tipRX*0.5, tipCy); ctx.quadraticCurveTo(nR.x-nW*0.05, nR.y-nLen*0.10, nR.x, nR.y); ctx.stroke();
     ctx.lineWidth=lw*0.85; ctx.beginPath(); ctx.moveTo(nL.x,nL.y); ctx.quadraticCurveTo(n2.x,n2.y+fH*0.012*long,nR.x,nR.y); ctx.stroke();
-    ctx.fillStyle=skinSh2; const noR=nW*0.085; for(const p of [nL,nR]){ ctx.beginPath(); ctx.ellipse(p.x,p.y+fH*0.002,noR,noR*0.72,0,0,Math.PI*2); ctx.fill(); }
+    const noR=nW*(0.075+0.05*Math.max(0,upturn)); const noFlat=upturn>0.15?0.85:0.66;
+    ctx.fillStyle=skinSh2; ctx.globalAlpha=Math.min(1,0.8+0.2*Math.max(0,upturn));
+    for(const q of [nL,nR]){ ctx.beginPath(); ctx.ellipse(q.x,q.y+fH*0.002,noR,noR*noFlat,0,0,Math.PI*2); ctx.fill(); }
+    ctx.globalAlpha=1;
 
-    // ===== 8) 입 (윗/아랫입술 분리 + 큐피드보우 + 그라데이션) =====
-    const lipPts=OUTER_LIP.map(i=>map(P[i]));
+    // ===== 8) 입 — 입술 두께 개인차 + 인중 =====
     const lc1=map(P[61]),lc2=map(P[291]),lcm=map(centroid(P,[13,14]));
-    const LIP = st.gray? "#cf5f55" : PAL.lip; const LIPSH = st.gray? "#a8443d" : PAL.lipSh;
+    const ulTop=map(P[0]), ulIn=map(P[13]), llIn=map(P[14]), llBot=map(P[17]);
+    const mouthW=Math.max(fW*0.1, Math.hypot(lc2.x-lc1.x, lc2.y-lc1.y));
+    const upTh=Math.abs(ulIn.y-ulTop.y), loTh=Math.abs(llBot.y-llIn.y);
+    const lipDev=Math.max(0.6,Math.min(1.8,((upTh+loTh)/mouthW)/0.34));
+    const lipK=1+(lipDev-1)*(0.5+0.7*exK);   // 두꺼운 입술 강조(과장 반영)
+    const lipPts=OUTER_LIP.map(i=>{ const q=map(P[i]); return {x:q.x, y:lcm.y+(q.y-lcm.y)*lipK}; });
+    const lipHex = (__lipColor && __lipColor.rgb && !st.gray)? lipHexFrom(__lipColor.rgb, __lipColor.vivid) : null;
+    const LIP = st.gray? "#cf5f55" : (lipHex || PAL.lip); const LIPSH = st.gray? "#a8443d" : (lipHex? shade(lipHex,-0.22) : PAL.lipSh);
     const lg=ctx.createLinearGradient(0,lcm.y-fH*0.04,0,lcm.y+fH*0.06); lg.addColorStop(0,shade(LIP,-0.12)); lg.addColorStop(1,shade(LIP,0.1));
     ctx.fillStyle=lg; smoothPoly(ctx,lipPts); ctx.fill();
     ctx.save(); smoothPoly(ctx,lipPts); ctx.clip();
@@ -1156,6 +1193,13 @@
       ctx.restore(); }
     ctx.strokeStyle=PAL.line; ctx.lineWidth=lw*0.85; smoothPoly(ctx,lipPts); ctx.stroke();
 
+    // 인중(philtrum) — 코밑~윗입술, 길이 개인차 반영
+    try{ const philLen=Math.max(fH*0.004,Math.abs(ulTop.y-n2.y)); const pw=mouthW*0.10;
+      ctx.save(); ctx.globalAlpha=0.20*st.shade; ctx.strokeStyle=skinSh2; ctx.lineCap="round"; ctx.lineWidth=lw*0.7;
+      ctx.beginPath(); ctx.moveTo(n2.x-pw, n2.y+philLen*0.12); ctx.quadraticCurveTo(n2.x-pw*0.85,(n2.y+ulTop.y)/2, ulTop.x-pw*0.7, ulTop.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(n2.x+pw, n2.y+philLen*0.12); ctx.quadraticCurveTo(n2.x+pw*0.85,(n2.y+ulTop.y)/2, ulTop.x+pw*0.7, ulTop.y); ctx.stroke();
+      ctx.restore();
+    }catch(_){}
     // ===== 9) 앞머리(합성, 사이드 스윕) — 실제 머리 없을 때만 =====
     if(!hideSynthHair){ ctx.fillStyle=hair; ctx.beginPath();
     ctx.moveTo(minX-fW*0.03, minY+fH*0.05);
@@ -1168,6 +1212,36 @@
     ctx.strokeStyle=hairHi; ctx.lineWidth=u*1.3; ctx.globalAlpha=0.55;
     for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(C.x+i*fW*0.12-fW*0.05, minY-fH*0.02); ctx.quadraticCurveTo(C.x+i*fW*0.16, minY-fH*0.12, C.x+i*fW*0.2+fW*0.06, minY-fH*0.02); ctx.stroke(); }
     ctx.globalAlpha=1; }
+  }
+  function detectLipColor(ctx, lm, W, H){
+    if(!lm) return null;
+    const samp=(i)=>{ if(!lm[i]) return null; const x=Math.round(lm[i].x*W), y=Math.round(lm[i].y*H), rad=2; const x0=Math.max(0,x-rad), y0=Math.max(0,y-rad); const w=Math.min(rad*2+1,W-x0), h=Math.min(rad*2+1,H-y0); if(w<=0||h<=0) return null; const d=ctx.getImageData(x0,y0,w,h).data; let r=0,g=0,b=0,n=0; for(let k=0;k<d.length;k+=4){ r+=d[k];g+=d[k+1];b+=d[k+2];n++; } return n?[r/n,g/n,b/n]:null; };
+    const ids=[0,267,37,17,84,314,82,312]; const cols=ids.map(samp).filter(c=>c && (0.299*c[0]+0.587*c[1]+0.114*c[2])<205);
+    if(cols.length<3) return null;
+    let r=0,g=0,b=0; for(const c of cols){ r+=c[0];g+=c[1];b+=c[2]; } r/=cols.length;g/=cols.length;b/=cols.length;
+    const sk=[117,346,50,280].map(samp).filter(Boolean); let vivid=0.5;
+    if(sk.length){ let sr=0,sg=0,sb=0; for(const c of sk){ sr+=c[0];sg+=c[1];sb+=c[2]; } sr/=sk.length;sg/=sk.length;sb/=sk.length;
+      const lipRed=r-(g+b)/2, skinRed=sr-(sg+sb)/2; vivid=Math.max(0,Math.min(1,(lipRed-skinRed)/30)); }
+    return {rgb:[r,g,b], vivid};
+  }
+  function lipHexFrom(rgb,vivid){ vivid=(typeof vivid==="number")?vivid:0.5; const REF=[178,104,96], mix=(1-vivid)*0.42;
+    let r=rgb[0]*(1-mix)+REF[0]*mix, g=rgb[1]*(1-mix)+REF[1]*mix, b=rgb[2]*(1-mix)+REF[2]*mix; r=r*1.03+6; if(r-g<14) r=g+14;
+    const hx=v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0"); return "#"+hx(r)+hx(g)+hx(b); }
+  function detectBrows(ctx, lm, W, H){
+    if(!lm) return null;
+    const lumAt=(i)=>{ if(!lm[i]) return null; const x=Math.round(lm[i].x*W), y=Math.round(lm[i].y*H), rad=3, x0=Math.max(0,x-rad), y0=Math.max(0,y-rad), w=Math.min(rad*2+1,W-x0), h=Math.min(rad*2+1,H-y0); if(w<=0||h<=0) return null; const d=ctx.getImageData(x0,y0,w,h).data; let L=0,n=0; for(let k=0;k<d.length;k+=4){ L+=0.299*d[k]+0.587*d[k+1]+0.114*d[k+2]; n++; } return n?L/n:null; };
+    const bl=[105,66,107,334,296,336,70,63,300,293].map(lumAt).filter(v=>v!=null);
+    const fl=[10,151,9,108,337].map(lumAt).filter(v=>v!=null);
+    if(!bl.length||!fl.length) return null;
+    const bL=bl.reduce((a,c)=>a+c,0)/bl.length, fL=fl.reduce((a,c)=>a+c,0)/fl.length;
+    return {dark:Math.max(0,Math.min(1,((1-bL/(fL+1e-3))-0.05)/0.5))};
+  }
+  function detectEyes(ctx, lm, W, H){
+    if(!lm) return null;
+    const lum=(x,y)=>{ const rad=2, x0=Math.max(0,Math.round(x-rad)), y0=Math.max(0,Math.round(y-rad)); const w=Math.min(rad*2+1,W-x0), h=Math.min(rad*2+1,H-y0); if(w<=0||h<=0) return null; const d=ctx.getImageData(x0,y0,w,h).data; let L=0,n=0; for(let k=0;k<d.length;k+=4){ L+=0.299*d[k]+0.587*d[k+1]+0.114*d[k+2]; n++; } return n?L/n:null; };
+    const crease=(topI,botI)=>{ if(!lm[topI]||!lm[botI]) return 0; const tx=lm[topI].x*W, ty=lm[topI].y*H, eh=Math.max(3,Math.abs(lm[botI].y*H-ty)); const N=8, span=eh*2.0, vals=[]; for(let i=0;i<N;i++){ const v=lum(tx, ty-(i/(N-1))*span); if(v!=null) vals.push(v); } if(vals.length<5) return 0; let mn=1e9,mx=-1e9,mi=0; vals.forEach((v,i)=>{ if(v<mn){mn=v;mi=i;} if(v>mx)mx=v; }); const low=mi>=1 && mi<=Math.floor(N*0.6); const con=(mx-mn)/(mx+1e-3); return Math.min(1,(low?con*2.4:con*0.8)); };
+    const cr=crease(159,145), cl=crease(386,374);
+    return {crease:Math.max(0,Math.min(1,(cr+cl)/2))};
   }
   function detectBeard(ctx, lm, W, H){
     if(!lm) return null;
@@ -1685,7 +1759,7 @@
   async function handleFile(file, forced=null){
     if(!file||!file.type.startsWith("image/")){ setStatus("fail","이미지 파일만 가능"); return; }
     lastPhotoFile=file;
-    setStatus("loading","분석 엔진 준비 중…"); dentL=dentR=0; ended=false; hairLayer=null; avgSkin=null; avgHair=null; photoGray=false; photoEarrings=null; photoHairPoly=null; __beard=null; photoLineArt=null; lineSrc=null; lineMul=1; exagMul=1; try{el("lineRange").value=50; el("exagRange").value=50;}catch(_){}
+    setStatus("loading","분석 엔진 준비 중…"); dentL=dentR=0; ended=false; hairLayer=null; avgSkin=null; avgHair=null; photoGray=false; photoEarrings=null; photoHairPoly=null; __beard=null; __lipColor=null; __eyes=null; __brows=null; photoLineArt=null; lineSrc=null; lineMul=1; exagMul=1; try{el("lineRange").value=50; el("exagRange").value=50;}catch(_){}
     if(!(await ensureEngine()) || !faceLandmarker){ setStatus("fail","분석 엔진을 불러오지 못했습니다. 네트워크 확인 후 새로고침 해주세요."); return; }
     let src;
     try{ setStatus("loading","이미지 불러오는 중…"); src=await loadOriented(file); }
@@ -1742,7 +1816,7 @@
       el("photoCtl").classList.add("show"); setStatus("fail", forced!=null? "이 각도에선 얼굴 인식이 약해요 — 🔄 회전을 한 번 더 눌러보세요." : "얼굴을 찾지 못했어요. 얼굴이 크게·정면으로 나온 밝은 사진을 써보세요.");
       { const od=el("odbg"); if(od){ od.style.display=DBG?"block":"none"; od.textContent="🔧 "+(__orientDbg||"?")+" · rot"+detRot+" · 얼굴없음"; } } return;
     }
-    photoLM=res.faceLandmarks[0]; faceFound=true; try{ __beard=detectBeard(tmpCtx, photoLM, WW, WH); }catch(_){ __beard=null; } bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
+    photoLM=res.faceLandmarks[0]; faceFound=true; try{ __beard=detectBeard(tmpCtx, photoLM, WW, WH); }catch(_){ __beard=null; } try{ __lipColor=detectLipColor(tmpCtx, photoLM, WW, WH); }catch(_){ __lipColor=null; } try{ __eyes=detectEyes(tmpCtx, photoLM, WW, WH); }catch(_){ __eyes=null; } try{ __brows=detectBrows(tmpCtx, photoLM, WW, WH); }catch(_){ __brows=null; } bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
     setStatus("ok","캐리커쳐 생성 완료"+(detRot?(" · 자동회전 "+detRot+"°"):"")+" — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show"); updateLineCtl();
     { const od=el("odbg"); if(od){ od.style.display=DBG?"block":"none"; od.textContent="🔧 "+(__orientDbg||"?")+" · work"+bw+"x"+bh+" · rot"+detRot+" · yaw"+(__lastYaw||0).toFixed(2)+" · "+(__faceDeleg||"?"); } }
   }
