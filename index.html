@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v13</div>
+    <div class="step-badge">참교육 v14</div>
   </header>
 
   <div class="toolbar">
@@ -361,6 +361,7 @@
   let yawHintOn=false, __lastYaw=0;
   let lastPhotoFile=null, forcedRot=null, __faceDeleg="";
   const DBG=/[?&]debug=1/.test(location.search||"");  // ?debug=1 일 때만 진단줄 표시
+  const IS_MOBILE=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||"");
   let rafId=null, lastVideoTime=-1, texDirty=false;
   let total=0, combo=0, best=0, lastHit=0, alt=0;
   const effects=[], warps=[];
@@ -1797,6 +1798,17 @@
   el("mPhoto").addEventListener("click",()=>switchMode("photo"));
   el("slapL").addEventListener("click",()=>slap("L"));
   el("slapR").addEventListener("click",()=>slap("R"));
+  // 모바일: 회전·맞춤 버튼 숨김(방향 문제 해결로 불필요)
+  if(IS_MOBILE){ try{ el("rotPhoto").style.display="none"; }catch(_){} try{ el("zoomFit").style.display="none"; }catch(_){} }
+  // PC 키보드: 스페이스=왼쪽 볼, 엔터=오른쪽 볼
+  window.addEventListener("keydown",e=>{
+    if(e.repeat) return;
+    const t=e.target, tag=(t&&t.tagName)||"";
+    if(/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(tag) || (t&&t.isContentEditable)) return;
+    if(!faceFound) return;
+    if(e.code==="Space"||e.key===" "){ e.preventDefault(); slap("L"); }
+    else if(e.code==="Enter"||e.key==="Enter"){ e.preventDefault(); slap("R"); }
+  });
   el("file").addEventListener("change",e=>{ forcedRot=null; handleFile(e.target.files[0]); });
   el("rotPhoto").addEventListener("click",()=>{ if(!lastPhotoFile) return; forcedRot=(((forcedRot==null?0:forcedRot)+90)%360); handleFile(lastPhotoFile, forcedRot); });
   el("dropzone").addEventListener("click",()=>el("file").click());
