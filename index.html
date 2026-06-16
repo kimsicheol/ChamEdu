@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v1</div>
+    <div class="step-badge">참교육 v2</div>
   </header>
 
   <div class="toolbar">
@@ -1632,13 +1632,15 @@
     const drawRot=(deg)=>{ const swap=(deg===90||deg===270); const cw=swap?bh:bw, ch=swap?bw:bh; tmpCanvas.width=cw; tmpCanvas.height=ch; tmpCtx.setTransform(1,0,0,1,0,0); tmpCtx.clearRect(0,0,cw,ch); tmpCtx.save(); tmpCtx.translate(cw/2,ch/2); tmpCtx.rotate(deg*Math.PI/180); tmpCtx.drawImage(src,-bw/2,-bh/2,bw,bh); tmpCtx.restore(); };
     const hasFace=(r)=>!!(r&&r.faceLandmarks&&r.faceLandmarks.length);
     // 이마(10)→턱(152)이 아래로 향할수록 '똑바로 선' 얼굴 → 옆으로 누운 사진도 정방향으로 교정
-    const upScore=(lm)=> (lm&&lm[152]&&lm[10])? (lm[152].y - lm[10].y) : -9;
+    const upScore=(lm)=>{ if(!lm||!lm[10]||!lm[152]||!lm[33]||!lm[263]) return -9;
+      const vspan=lm[152].y-lm[10].y, eyeTilt=Math.abs(lm[263].y-lm[33].y); return vspan - eyeTilt*1.5; };
+    let detRot=0;
     try{ await ensureMode("IMAGE");
-      // 0→90→270→180 중 '가장 똑바로 선' 방향을 선택(모바일 EXIF 미보정·회전 사진 대응)
+      // 0·90·270·180 전부 검출 후 '가장 똑바로 선'(턱이 이마 아래 + 눈선 수평) 방향 채택 — 조기 종료 없음
       let best=null;
       for(const deg of [0,90,270,180]){ drawRot(deg); const r=faceLandmarker.detect(tmpCanvas);
-        if(hasFace(r)){ const up=upScore(r.faceLandmarks[0]); if(!best || up>best.up) best={deg, r, up}; if(up>0.22) break; } }
-      if(best){ drawRot(best.deg); res=best.r; } else { drawRot(0); res=null; }
+        if(hasFace(r)){ const up=upScore(r.faceLandmarks[0]); if(!best || up>best.up) best={deg, r, up}; } }
+      if(best){ detRot=best.deg; drawRot(best.deg); res=best.r; } else { drawRot(0); res=null; }
     }
     catch(e){ console.warn("detect 실패", e); setStatus("fail","얼굴 분석에 실패했습니다. 새로고침 후 다시 시도해 주세요."); try{ tmpCtx.setTransform(1,0,0,1,0,0); tmpCtx.clearRect(0,0,tmpCanvas.width,tmpCanvas.height); }catch(_){} return; }
     WW=tmpCanvas.width; WH=tmpCanvas.height; photoW=WW; photoH=WH;
@@ -1662,7 +1664,7 @@
       el("photoCtl").classList.add("show"); setStatus("fail","얼굴을 찾지 못했어요. 얼굴이 크게·정면으로 나온 밝은 사진을 써보세요."); return;
     }
     photoLM=res.faceLandmarks[0]; faceFound=true; bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
-    setStatus("ok","캐리커쳐 생성 완료 — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show"); updateLineCtl();
+    setStatus("ok","캐리커쳐 생성 완료"+(detRot?(" · 자동회전 "+detRot+"°"):"")+" — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show"); updateLineCtl();
   }
   function setDispForAspect(A){ if(A>=1){ pview.dispW=720; pview.dispH=Math.round(720/A); } else { pview.dispH=720; pview.dispW=Math.round(720*A); } }
   function fitFace(){ const fw=faceBox.x1-faceBox.x0, fh=faceBox.y1-faceBox.y0, m=0.55*Math.max(fw,fh);
