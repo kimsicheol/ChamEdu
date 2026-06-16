@@ -97,6 +97,8 @@
   @keyframes bob{50%{transform:translateX(-50%) translateY(-5px);}}
   .combobadge{position:absolute; top:10px; right:10px; z-index:4; background:rgba(14,11,20,.85); border:1px solid var(--sting); color:var(--sting); font-family:"Black Han Sans"; font-size:15px; padding:5px 11px; border-radius:999px; display:none;}
   .combobadge.show{display:block;}
+  .linectl{position:absolute; left:10px; bottom:10px; z-index:4; display:none; align-items:center; gap:8px; background:rgba(14,11,20,.82); border:1px solid var(--line); border-radius:999px; padding:6px 12px;}
+  .linectl.show{display:flex;} .linectl span{font-size:12px; color:var(--muted); font-weight:700;} .linectl input[type=range]{width:110px; accent-color:var(--slap);}
   .combobadge.pop{animation:cbpop .14s ease;}
   @keyframes cbpop{0%{transform:scale(1);}50%{transform:scale(1.22);}100%{transform:scale(1);}}
   /* ── 모바일: 캐리커쳐 + 조작이 스크롤 없이 이어지게 ── */
@@ -126,7 +128,7 @@
     <h3><b>참</b>교육 LAB · 시작하기 전에</h3>
     <p class="small">하루치 스트레스를 가볍게 털어내는 해소용 토이입니다.</p>
     <ul>
-      <li>얼굴은 <b>플랫·카툰·전통과장 캐리커쳐</b>로만 그려집니다(원본 픽셀 표시 안 됨).</li>
+      <li>얼굴은 <b>봉근대·임한림·나화진 캐리커쳐</b>로만 그려집니다(원본 픽셀 표시 안 됨).</li>
       <li>사진의 <b>머리카락 모양·평균 머리/피부색</b>만 추출해 반영합니다. 원본 이미지는 <b>기기 밖으로 나가지 않습니다</b>.</li>
       <li>타인을 실제로 괴롭히거나 무단 공유하는 용도가 아니에요.</li>
     </ul>
@@ -179,6 +181,7 @@
       <button class="btn" id="exportFree" style="width:100%;">무료 저장 · 1024px (워터마크)</button>
       <button class="btn primary" id="exportPro" style="width:100%;">⭐ 프리미엄 저장 · 2048px (워터마크 없음)</button>
       <button class="btn" id="exportScore" style="width:100%; color:var(--sting); border-color:var(--sting);">🏆 성적표 저장 (때린 횟수·등급 자랑)</button>
+      <button class="btn" id="exportSketch" style="width:100%; color:var(--ok); border-color:var(--ok);">✏️ 스케치 PNG 저장 (DemoCaricature용)</button>
       <button class="btn" id="exportClose" style="width:100%;">닫기</button>
     </div>
     <p class="small" style="margin:14px 0 0;">'참교육 후'는 붓기·멍·피가 입혀진 버전이에요. 프리미엄은 결제 연동 시 해제(데모는 바로 저장).</p>
@@ -197,9 +200,9 @@
       <button id="mWebcam">웹캠</button>
     </div>
     <div class="chips" id="styleChips" style="margin:0;">
-      <button data-s="flat" class="on">🎨 플랫</button>
-      <button data-s="cartoon">✨ 카툰</button>
-      <button data-s="trad">🤡 전통과장</button>
+      <button data-s="flat" class="on">🥸 봉근대</button>
+      <button data-s="cartoon">🏉 임한림</button>
+      <button data-s="trad">🥋 나화진</button>
     </div>
     <button class="pill" id="exportBtn">⬇️ PNG 저장</button>
     <button class="pill" id="statBtn">📊 통계</button>
@@ -221,6 +224,19 @@
         </div>
         <div class="taphint" id="tapHint">👆 볼을 톡 치면 참교육!</div>
         <div class="combobadge" id="comboBadge">🔥 0</div>
+        <div id="gaugeWrap" style="display:none; position:absolute; top:34px; left:14px; right:14px; z-index:5; height:18px; background:rgba(14,11,20,.72); border:1px solid var(--line); border-radius:999px; overflow:hidden;"><div id="gaugeFill" style="height:100%; width:0%; background:linear-gradient(90deg,#FFD23F,#FF2E4D);"></div><div id="gaugeLabel" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.6); letter-spacing:1px;"></div></div>
+        <div id="yawHint" style="display:none; position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:6; align-items:center; gap:6px; background:rgba(20,16,28,0.88); color:#FFD23F; font-weight:700; font-size:12.5px; padding:7px 13px; border-radius:999px; border:1px solid rgba(255,210,63,0.35); white-space:nowrap; pointer-events:none;">↔ 측면 각도가 커요 — 정면 사진을 권장해요</div>
+        <div id="modePicker" style="display:none; position:absolute; inset:0; z-index:8; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(10,8,16,0.62); backdrop-filter:blur(2px);">
+          <div style="font-family:'Black Han Sans',sans-serif; font-size:20px; color:#FFD23F;">참교육 모드 선택</div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; gap:5px; align-items:center;"><button class="btn" data-pg="free">🚶 자율순찰</button><span id="pickFree" style="font-size:11px; color:#cfc7dd;"></span></div>
+            <div style="display:flex; flex-direction:column; gap:5px; align-items:center;"><button class="btn primary" data-pg="timing">🎯 정밀단속</button><span id="pickTiming" style="font-size:11px; color:#FFD23F;"></span></div>
+            <div style="display:flex; flex-direction:column; gap:5px; align-items:center;"><button class="btn" data-pg="speed">🚨 긴급출동</button><span id="pickSpeed" style="font-size:11px; color:#FF8FA0;"></span></div>
+          </div>
+          <div style="font-size:12px; color:#cfc7dd;">정밀단속=리듬 타이밍 · 긴급출동=스피드 게이지 · 아무 곳이나 탭하면 자율순찰</div>
+        </div>
+        <div class="linectl" id="lineCtl"><span>선량</span><input type="range" id="lineRange" min="0" max="100" value="50"></div>
+        <div class="linectl" id="exagCtl" style="bottom:48px;"><span>과장</span><input type="range" id="exagRange" min="0" max="100" value="50"></div>
 
         <div class="overlay" id="startOverlay">
           <div class="big">실시간 참교육</div>
@@ -259,6 +275,11 @@
           <button data-h="fine">💅 고운손</button>
           <button data-h="normal" class="on">✋ 보통</button>
         </div>
+        <div class="chips" id="gameChips" style="margin-top:6px;">
+          <button data-g="free" class="on">🚶 자율순찰</button>
+          <button data-g="timing">🎯 정밀단속</button>
+          <button data-g="speed">🚨 긴급출동</button>
+        </div>
         <button class="btn" id="restartBtn">리셋</button>
         <input type="file" id="file" accept="image/*" hidden />
         <span class="keys"><kbd>F</kbd>·<kbd>J</kbd>·<kbd>Space</kbd></span>
@@ -273,6 +294,8 @@
         <div class="metric"><span class="k">세션 타격</span><span class="v" id="mTotal">0</span></div>
         <div class="metric"><span class="k">최고 콤보</span><span class="v" id="mBest">0</span></div>
         <div class="metric"><span class="k">오늘 누적</span><span class="v" id="mToday">0</span></div>
+        <div class="metric"><span class="k">🎯 정밀단속 최고 연속</span><span class="v" id="mTiming">0</span></div>
+        <div class="metric"><span class="k">🚨 긴급출동 FEVER</span><span class="v" id="mSpeed">0</span></div>
 
         <div class="timeatk">
           <div class="row2" style="margin-top:0;">
@@ -328,11 +351,12 @@
   const tmpCanvas=document.createElement("canvas"), tmpCtx=tmpCanvas.getContext("2d");
 
   let faceLandmarker=null, runningMode=null, segmenter=null, segMode=null;
-  let hairLayer=null, avgSkin=null, avgHair=null, photoGray=false, photoEarrings=null;
+  let hairLayer=null, avgSkin=null, avgHair=null, photoGray=false, photoEarrings=null, photoHairPoly=null;
   let hairLive=null, segTick=0; const SEG_EVERY=4;
   const segCv=document.createElement("canvas"), segCtx=segCv.getContext("2d");
   let mode="photo", hand="normal", ended=false;
   let cheekL=null, cheekR=null, noseP=null, mouthP=null, faceFound=false, cheekR_px=58;
+  let yawHintOn=false;
   let rafId=null, lastVideoTime=-1, texDirty=false;
   let total=0, combo=0, best=0, lastHit=0, alt=0;
   const effects=[], warps=[];
@@ -345,20 +369,26 @@
   const dmgLevel=()=>Math.min(1,(dentL+dentR)*0.55);
   // 3가지 캐리커쳐 스타일 (퍼센트 대신 선택) — 팔레트·부스트·바디 비율 포함
   const STYLES={
-    flat:    { label:"플랫",     ex:0.45, eyeScale:1.08, faceRound:0.10, noseBoost:1.0,  jawBoost:1.0,  browW:2.4, lineW:1.0,  shade:0.6,  lash:false, iris:0.66, hi:0.9,
-               bodyDrop:0.34, shoulderW:1.18, neckW:0.36, shirt:"#5C7CB8", shirtSh:"#43608F", hair:"#3B2F28", skin:"#F3CAA2" },
-    cartoon: { label:"카툰",     ex:0.26, eyeScale:1.95, faceRound:0.48, noseBoost:0.80, jawBoost:1.0,  browW:2.0, lineW:1.05, shade:0.78, lash:true,  iris:0.82, hi:1.1,
-               bodyDrop:0.36, shoulderW:1.12, neckW:0.34, shirt:"#F2A65A", shirtSh:"#D7853B", hair:"#4A3327", skin:"#FAD2AE" },
-    trad:    { label:"전통과장", ex:1.0,  eyeScale:0.98, faceRound:0.0,  noseBoost:1.5,  jawBoost:1.32, browW:3.4, lineW:1.4,  shade:0.62, lash:false, iris:0.6,  hi:0.85,
-               bodyDrop:0.20, shoulderW:0.86, neckW:0.30, shirt:"#C0504D", shirtSh:"#9A3D3A", hair:"#322620", skin:"#EEC199", bigHead:true }
+    flat:    { label:"봉근대",     ex:0.45, eyeScale:1.08, faceRound:0.16, noseBoost:1.0,  jawBoost:1.0,  browW:2.4, lineW:1.0,  shade:0.6,  lash:false, iris:0.66, hi:0.9,
+               bodyDrop:0.34, shoulderW:1.18, neckW:0.36, shirt:"#5C7CB8", shirtSh:"#43608F", hair:"#3B2F28", skin:"#F3CAA2", color:true, exag:1.0, blush:0.42, eyeEnl:1.18, browMul:1.0, upMul:1.0, dnMul:1.0, shirtLW:1.0, collar:"round", coreLine:1.06, earK:1.0, neckLen:0.34, eyeAspect:1.0, eyeTilt:0.05 },
+    cartoon: { label:"임한림",     ex:0.26, eyeScale:1.95, faceRound:0.48, noseBoost:0.80, jawBoost:1.0,  browW:2.0, lineW:1.05, shade:0.78, lash:true,  iris:0.82, hi:1.1,
+               bodyDrop:0.36, shoulderW:1.12, neckW:0.34, shirt:"#F2A65A", shirtSh:"#D7853B", hair:"#4A3327", skin:"#FAD2AE", color:true, exag:1.42, blush:0.62, eyeEnl:1.55, browMul:0.95, upMul:1.2, dnMul:1.1, shirtLW:1.2, collar:"v", coreLine:1.0, earK:1.16, neckLen:0.18, eyeAspect:1.24, eyeTilt:0.0, browTilt:0.22 },
+    trad:    { label:"나화진", ex:1.0,  eyeScale:0.98, faceRound:0.0,  noseBoost:1.5,  jawBoost:1.4, browW:3.4, lineW:1.4,  shade:0.62, lash:false, iris:0.6,  hi:0.85,
+               bodyDrop:0.20, shoulderW:0.86, neckW:0.30, shirt:"#C0504D", shirtSh:"#9A3D3A", hair:"#322620", skin:"#EEC199", bigHead:true, color:true, exag:1.6, blush:0.4, eyeEnl:1.1, browMul:1.4, upMul:2.4, dnMul:1.6, shirtLW:1.8, collar:"han", coreLine:1.2, earK:0.92, neckLen:0.55, eyeAspect:0.60, eyeTilt:0.6, browTilt:0.62, eyeInnerDrop:0.5 },
+    line:    { label:"선화",     ex:0.0,  eyeScale:1.0,  faceRound:0.0,  noseBoost:1.0,  jawBoost:1.0,  browW:2.0, lineW:1.0,  shade:0.6,  lash:false, iris:0.66, hi:0.9,
+               bodyDrop:0.34, shoulderW:1.18, neckW:0.36, shirt:"#5C7CB8", shirtSh:"#43608F", hair:"#3B2F28", skin:"#F3CAA2", color:false, exag:1.0, blush:0, eyeEnl:1.18, browMul:1.0, upMul:1.0, dnMul:1.0 }
   };
-  let style="flat";
+  let style="flat", photoLineArt=null, lineSrc=null, lineMul=1, paperNoise=null, exagMul=1, sketchMode=false;
   const ST=()=>STYLES[style];
   let liveLM=null;
 
   let WW=0, WH=0, photoW=0, photoH=0, photoLM=null, cheekFullL=null, cheekFullR=null, noseFull=null, mouthFull=null, faceBox=null;
   const pview={A:4/3, cx:0, cy:0, hh:1, dispW:600, dispH:450, hhMin:20, hhMax:1000};
   let selectedDur=30, records={}; const timed={active:false, endTime:0, dur:30, count:0};
+  // ── 게임 모드: free(자유)/timing(타이밍)/speed(스피드 게이지) ──
+  let gameMode="free", gauge=0, feverUntil=0, hitPulse=0, lastGaugeT=performance.now(), lastJudge=null;
+  let perfectStreak=0, speedFeverRun=0, tPerfect=0, tGood=0, tMiss=0, lastBeatIdx=-1; let gameRecords={timingBestStreak:0, speedFeverBest:0};
+  const BEAT_MS=760, GAME_KEY="chamgyo:game";
 
   /* ─────────── 공통 헬퍼 ─────────── */
   const centroid=(P,idxs)=>{ let x=0,y=0; for(const i of idxs){x+=P[i].x;y+=P[i].y;} return {x:x/idxs.length,y:y/idxs.length}; };
@@ -477,8 +507,9 @@
         for(let y=0;y<mh;y++){ const a0=Math.max(0,y-r),a1=Math.min(mh-1,y+r); const s=pre[a1+1]-pre[a0]; out[y*mw+x]= erode?(s===(a1-a0+1)?1:0):(s>0?1:0); } } return out; };
     const dil=(src,r)=>passV(passH(src,r,false),r,false), ero=(src,r)=>passV(passH(src,r,true),r,true);
     let b=ero(dil(a,2),2);        // close: 작은 구멍·삐죽함 메움
-    b=keepBigComponents(b,mw,mh); // 큰 덩어리만(귀걸이·잡블롭 제거 — 침식 없이 despeckle)
-    b=dil(b,1);                   // 살짝만 키움(겹침은 얼굴 윗윤곽 확장으로 보강)
+    b=keepBigComponents(b,mw,mh); // 큰 덩어리만(귀걸이·잡블롭 제거)
+    b=dil(ero(b,2),2);            // open: 얇은 삐침/잔가지(뾰족 튀어나옴) 제거
+    b=dil(b,1);                   // 살짝만 키움(겹침 보강)
     return b;
   }
   // 4방향 연결요소 중 큰 덩어리만 유지(귀걸이·점 노이즈 제거)
@@ -520,6 +551,304 @@
       else type="drop";
       out.push({type, ar:aspect}); }
     return out;
+  }
+  // ── 머리 실루엣 벡터화(컨투어 트레이싱) → 깔끔한 플랫 일러스트 헤어 ──
+  function labelComponents(b,mw,mh){
+    const n=mw*mh, labels=new Int32Array(n), stack=new Int32Array(n); const sizes=[0]; let cur=0;
+    for(let i=0;i<n;i++){ if(b[i] && !labels[i]){ cur++; sizes.push(0); let sp=0; stack[sp++]=i; labels[i]=cur;
+      while(sp>0){ const k=stack[--sp]; sizes[cur]++; const x=k%mw,y=(k/mw)|0;
+        if(x>0){const m=k-1; if(b[m]&&!labels[m]){labels[m]=cur;stack[sp++]=m;}}
+        if(x<mw-1){const m=k+1; if(b[m]&&!labels[m]){labels[m]=cur;stack[sp++]=m;}}
+        if(y>0){const m=k-mw; if(b[m]&&!labels[m]){labels[m]=cur;stack[sp++]=m;}}
+        if(y<mh-1){const m=k+mw; if(b[m]&&!labels[m]){labels[m]=cur;stack[sp++]=m;}} } } }
+    return {labels,sizes,count:cur};
+  }
+  function traceOutline(labels,mw,mh,sx,sy,c){ // Moore-neighbor 외곽 추적(시계방향)
+    const inside=(x,y)=> x>=0&&y>=0&&x<mw&&y<mh&&labels[y*mw+x]===c;
+    const N8=[[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
+    const pts=[{x:sx,y:sy}]; let bx=sx,by=sy,b=6; const maxIt=mw*mh*8; let it=0;
+    while(it++<maxIt){ let found=false;
+      for(let k=1;k<=8;k++){ const dir=(b+k)&7; const nx=bx+N8[dir][0], ny=by+N8[dir][1];
+        if(inside(nx,ny)){ b=(dir+4)&7; bx=nx; by=ny; found=true; if(bx===sx&&by===sy) return pts; pts.push({x:bx,y:by}); break; } }
+      if(!found || pts.length>mw*mh) break; }
+    return pts;
+  }
+  function dpSimplify(pts, eps){ if(pts.length<3) return pts;
+    const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1; const st=[[0,pts.length-1]];
+    while(st.length){ const seg=st.pop(), a=seg[0], bb=seg[1]; const ax=pts[a].x,ay=pts[a].y,dx=pts[bb].x-ax,dy=pts[bb].y-ay,L=Math.hypot(dx,dy)||1;
+      let maxD=0,idx=-1; for(let i=a+1;i<bb;i++){ const d=Math.abs((pts[i].x-ax)*dy-(pts[i].y-ay)*dx)/L; if(d>maxD){maxD=d;idx=i;} }
+      if(maxD>eps && idx>0){ keep[idx]=1; st.push([a,idx],[idx,bb]); } }
+    const out=[]; for(let i=0;i<pts.length;i++) if(keep[i]) out.push(pts[i]); return out;
+  }
+  function chaikin(pts, passes){ // 닫힌 폴리곤 모서리 깎기(둥글게)
+    for(let pp=0; pp<passes; pp++){ const n=pts.length; if(n<4) break; const out=[];
+      for(let i=0;i<n;i++){ const a=pts[i], b=pts[(i+1)%n];
+        out.push({x:a.x*0.75+b.x*0.25, y:a.y*0.75+b.y*0.25});
+        out.push({x:a.x*0.25+b.x*0.75, y:a.y*0.25+b.y*0.75}); }
+      pts=out; }
+    return pts;
+  }
+  function buildHairPoly(mask, mw, mh){
+    const hb=morphHair(mask, mw, mh);
+    const {labels,sizes,count}=labelComponents(hb,mw,mh); if(!count) return null;
+    let maxSz=0; for(let c=1;c<=count;c++) if(sizes[c]>maxSz) maxSz=sizes[c];
+    const polys=[];
+    for(let c=1;c<=count;c++){ if(sizes[c] < maxSz*0.18) continue;
+      let si=-1; for(let i=0;i<mw*mh;i++){ if(labels[i]===c){ si=i; break; } } if(si<0) continue;
+      const tr=traceOutline(labels,mw,mh,si%mw,(si/mw)|0,c); if(tr.length<10) continue;
+      let sp=dpSimplify(tr, Math.max(1.4, mw*0.009)); if(sp.length<6) continue;  // 더 과감히 단순화(잔거칠음 제거)
+      sp=chaikin(sp, 2);                                                          // 모서리 둥글게
+      polys.push(sp.map(p=>({x:(p.x+0.5)/mw, y:(p.y+0.5)/mh}))); }
+    return polys.length? {polys} : null;
+  }
+  /* ── 선화(라인아트): 사진 에지(차이-가우시안)를 추출해 잉크 라인으로 ── */
+  function generateLineArt(srcCv, inkRGB, lm, AW, AH){
+    inkRGB=inkRGB||[26,22,30];
+    const w=srcCv.width, h=srcCv.height;
+    const base=document.createElement("canvas"); base.width=w; base.height=h; const bx=base.getContext("2d");
+    try{ bx.filter="grayscale(1) contrast(1.18) brightness(1.03)"; }catch(_){}
+    bx.drawImage(srcCv,0,0); bx.filter="none";
+    const s1=Math.max(0.8, w*0.0016), s2=s1*1.8;
+    const blurData=(s)=>{ const c=document.createElement("canvas"); c.width=w; c.height=h; const x=c.getContext("2d"); try{x.filter=`blur(${s}px)`;}catch(_){}; x.drawImage(base,0,0); x.filter="none"; return x.getImageData(0,0,w,h).data; };
+    const d1=blurData(s1), d2=blurData(s2);
+    const N=w*h; const mag=new Uint8Array(N); const hist=new Int32Array(256);
+    const tau=0.96; let sum=0,sum2=0;
+    for(let i=0;i<N;i++){ const p=i*4; const g=d1[p]; sum+=g; sum2+=g*g; const v=d1[p]-tau*d2[p]; if(v<0){ const mg=Math.min(255,Math.round(-v)); mag[i]=mg; hist[mg]++; } }
+    // Q3) 밝기·대비로 선 밀도 목표를 5~8%에서(대비 낮으면 더 많이)
+    const mean=sum/N, std=Math.sqrt(Math.max(0,sum2/N-mean*mean)); const sn=Math.max(0,Math.min(1,std/80));
+    const targetFrac=0.08 - sn*0.03; const target=Math.round(N*targetFrac);
+    let acc=0, thr=8; for(let vv=255; vv>=1; vv--){ acc+=hist[vv]; if(acc>=target){ thr=vv; break; } } thr=Math.max(4, Math.min(46, thr));
+    // Q2) 핵심 부위(눈·눈썹·입) 가중 영역
+    const regions=[]; if(lm){ const ell=(idxs,px,py)=>{ let cx=0,cy=0; for(const i of idxs){cx+=lm[i].x;cy+=lm[i].y;} cx/=idxs.length; cy/=idxs.length; let rx=0,ry=0; for(const i of idxs){ rx=Math.max(rx,Math.abs(lm[i].x-cx)); ry=Math.max(ry,Math.abs(lm[i].y-cy)); } regions.push({cx:cx*w, cy:cy*h, rx:Math.max(4,rx*w*px), ry:Math.max(4,ry*h*py)}); };
+      try{ ell(eyeLIdx,1.45,2.0); ell(eyeRIdx,1.45,2.0); ell(lipsIdx,1.25,1.6); ell(browLIdx,1.3,1.9); ell(browRIdx,1.3,1.9); }catch(_){} }
+    // 손그림 떨림(가로 스트립 오프셋) — 한 번만 결정해 안정적으로 유지
+    const strips=Math.max(24, Math.round(h/8)), sh=h/strips, amp=Math.max(0.6, w*0.0016); const off=new Float32Array(strips);
+    for(let s=0;s<strips;s++) off[s]=amp*Math.sin(s*0.8)+(Math.random()-0.5)*amp;
+    lineSrc={ mag, w, h, regions, ink:inkRGB, baseThr:thr, strips, sh, off, featBoost:Math.max(0,Math.min(1,1-sn)) };
+    return renderLineFromSrc(thr);
+  }
+  function renderLineFromSrc(thr){ const L=lineSrc; if(!L) return null; const {mag,w,h,regions,ink}=L; const ir=ink[0],ig=ink[1],ib=ink[2]; const N=w*h;
+    const cv=document.createElement("canvas"); cv.width=w; cv.height=h; const cx=cv.getContext("2d"); const id=cx.createImageData(w,h), o=id.data;
+    for(let i=0;i<N;i++){ const v=mag[i]; if(!v) continue; const x=i%w, y=(i/w)|0;
+      let inside=false; for(let r=0;r<regions.length;r++){ const R=regions[r]; const dx=(x-R.cx)/R.rx, dy=(y-R.cy)/R.ry; if(dx*dx+dy*dy<=1){ inside=true; break; } }
+      const eThr= inside? thr*0.62 : thr;
+      if(v > eThr){ const p=i*4; let a=Math.min(255,(v-eThr)*18+105); if(inside) a=Math.min(255, a*1.4); o[p]=ir; o[p+1]=ig; o[p+2]=ib; o[p+3]=a; } }
+    cx.putImageData(id,0,0);
+    // 라인 약간 두껍게(굵은 잉크 느낌)
+    const thC=document.createElement("canvas"); thC.width=w; thC.height=h; const tcx=thC.getContext("2d");
+    tcx.drawImage(cv,0,0); tcx.globalAlpha=0.55; const o2=Math.max(0.6,w*0.0009);
+    tcx.drawImage(cv,o2,0); tcx.drawImage(cv,-o2,0); tcx.drawImage(cv,0,o2); tcx.drawImage(cv,0,-o2); tcx.globalAlpha=1;
+    // 떨림 적용
+    const wob=document.createElement("canvas"); wob.width=w; wob.height=h; const wx=wob.getContext("2d");
+    const {strips,sh,off}=L; for(let s=0;s<strips;s++){ const y=s*sh; wx.drawImage(thC, 0,y, w,sh+1, off[s], y, w, sh+1); }
+    return wob;
+  }
+  function getPaperNoise(){ if(paperNoise) return paperNoise; const s=160, c=document.createElement("canvas"); c.width=s; c.height=s; const x=c.getContext("2d"); const id=x.createImageData(s,s), d=id.data;
+    for(let i=0;i<s*s;i++){ const n=180+Math.random()*60; d[i*4]=n; d[i*4+1]=n; d[i*4+2]=n; d[i*4+3]=Math.random()*26; } x.putImageData(id,0,0); paperNoise=c; return c; }
+  function lineFaceMap(W,H,lm,AW,AH){
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for(const i of ovalIdx){ const X=lm[i].x*AW, Y=lm[i].y*AH; x0=Math.min(x0,X);y0=Math.min(y0,Y);x1=Math.max(x1,X);y1=Math.max(y1,Y); }
+    const fcx=(x0+x1)/2, fcy=(y0+y1)/2, fwpx=Math.max(1,x1-x0);
+    const headFrac=0.52, scale=(W*headFrac)/fwpx, headCx=W/2, headCy=H*0.42;
+    return { scale, fcx, fcy, headCx, headCy, map:p=>({x:headCx+(p.x*AW-fcx)*scale, y:headCy+(p.y*AH-fcy)*scale}) };
+  }
+  function composeLineArt(ctx,W,H,lm,AW,AH,transparent){
+    if(!photoLineArt) return null; const m=lineFaceMap(W,H,lm,AW,AH), map=m.map;
+    const sc=STYLES[style]||{}; const colorOn=!!sc.color; const exag=Math.max(0,(sc.exag||1)*exagMul);
+    const fb=(lineSrc&&typeof lineSrc.featBoost==="number")? lineSrc.featBoost : 0.4; // 에지 약할수록 큼
+    if(!transparent){ ctx.fillStyle=PAL.paper; ctx.fillRect(0,0,W,H); }
+    const ink=sketchMode? "#141414" : (lineSrc&&lineSrc.ink? `rgb(${lineSrc.ink[0]},${lineSrc.ink[1]},${lineSrc.ink[2]})` : "#1b1620");
+    const skinC=avgSkin||PAL.skin, hairC=avgHair||PAL.hair;
+    const ov=ring(lm,ovalIdx).map(i=>map(lm[i]));
+    let nx=1e9,xx=-1e9,ny=1e9,xy=-1e9; for(const p of ov){nx=Math.min(nx,p.x);xx=Math.max(xx,p.x);ny=Math.min(ny,p.y);xy=Math.max(xy,p.y);}
+    const fWp=xx-nx, fHp=xy-ny, Cx=(nx+xx)/2, Cy=(ny+xy)/2;
+    // ── 캐리커쳐 비율(가분수): 머리 크게 + 턱 갸름 — 강도 exag로 조절 ──
+    const eyeY=(map(centroid(lm,eyeLIdx)).y + map(centroid(lm,eyeRIdx)).y)/2;
+    const chinY=lm[152]? map(lm[152]).y : xy, topY=ny;
+    const upK=0.05*exag*(sc.upMul||1), dnK=Math.min(0.5,0.16*exag*(sc.dnMul||1));
+    const sxAt=(y)=>{ if(y<=eyeY){ const t=Math.max(0,Math.min(1,(eyeY-y)/Math.max(1,eyeY-topY))); return 1+upK*t; } const t=Math.max(0,Math.min(1,(y-eyeY)/Math.max(1,chinY-eyeY))); return 1-dnK*t; };
+    const _mids=[lm[1],lm[168],lm[152]].filter(q=>q).map(q=>map(q));
+    const faceMidX=_mids.length? _mids.reduce((a,q)=>a+q.x,0)/_mids.length : Cx;
+    const faceYaw=(()=>{ const dl=faceMidX-nx, dr=xx-faceMidX; return (dl-dr)/Math.max(1,(dl+dr)); })(); // <0 좌측 압축, >0 우측 압축
+    const Q2SKEW=0.55; // 측면 비대칭 강도(0=끄기)
+    const warp=(p)=>{ let x=Cx+(p.x-Cx)*sxAt(p.y); const ny=Math.abs(faceYaw);
+      if(ny>0.05){ const side=(x-faceMidX)*Math.sign(faceYaw); x += (x-faceMidX)*((side>0? -0.30:0.16)*ny*Q2SKEW); } // far측 압축·near측 확장
+      return {x, y:p.y}; };
+    const warpMap=(p)=>warp(map(p)), wmap=(i)=>warp(map(lm[i]));
+    const closed=(pp)=>{ const n=pp.length; if(n<3){pp.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));return;} ctx.moveTo((pp[n-1].x+pp[0].x)/2,(pp[n-1].y+pp[0].y)/2); for(let i=0;i<n;i++){const a=pp[i],b=pp[(i+1)%n]; ctx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2);} ctx.closePath(); };
+    const openPath=(pts)=>{ if(pts.length<2) return; ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y); for(let i=1;i<pts.length;i++){ const a=pts[i-1],b=pts[i]; ctx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2);} const L=pts[pts.length-1]; ctx.lineTo(L.x,L.y); ctx.stroke(); };
+    // 0) ── 컬러 베이스(스타일이 color일 때만) — 선화 아래에 면 색을 깐다 ──
+    if(colorOn){
+      const mappedHair = (photoHairPoly && photoHairPoly.polys) ? photoHairPoly.polys.map(poly=>poly.map(warpMap)) : [];
+      const ovW=ov.map(warp);
+      // 피부 면: 이마를 머리 밑까지 끌어올려(빈 띠 방지). 위쪽 점을 위로 확장.
+      const ovSkin=ovW.map(p=> p.y<Cy ? {x:p.x, y:p.y - fHp*0.24*((Cy-p.y)/Math.max(1,Cy-topY))} : p);
+      let neckBotY=null;
+      // 목(피부) — 턱 아래 기둥 + 외곽선 + 음영(턱밑 그림자/측면 셰이딩)
+      if(lm[152]){ const chin=warp(map(lm[152])), jl=warp(map(lm[172])||chin), jr=warp(map(lm[397])||chin);
+        const neckLen=sc.neckLen||0.34; const neckBot=jl.y+fHp*neckLen, nLx=jl.x-fWp*0.02, nRx=jr.x+fWp*0.02; neckBotY=neckBot;
+        const neckPath=()=>{ ctx.beginPath(); ctx.moveTo(jl.x,jl.y); ctx.lineTo(jr.x,jr.y); ctx.lineTo(nRx, neckBot); ctx.lineTo(nLx, neckBot); ctx.closePath(); };
+        ctx.save(); ctx.fillStyle=shade(skinC,-0.05); neckPath(); ctx.fill();
+        // 디테일(클립): 턱밑 그림자 + 좌측면 음영 + 목 힘줄
+        neckPath(); ctx.clip();
+        const ns=ctx.createLinearGradient(0, jl.y-fHp*0.03, 0, jl.y+fHp*0.17); ns.addColorStop(0, shade(skinC,-0.26)); ns.addColorStop(1,"rgba(0,0,0,0)"); ctx.fillStyle=ns; ctx.fillRect(nLx-2, jl.y-fHp*0.05, (nRx-nLx)+4, fHp*0.24);
+        const nl=ctx.createLinearGradient(nLx,0,nLx+fWp*0.14,0); nl.addColorStop(0, shade(skinC,-0.18)); nl.addColorStop(1,"rgba(0,0,0,0)"); ctx.fillStyle=nl; ctx.fillRect(nLx, jl.y, fWp*0.14, fHp*neckLen);
+        ctx.strokeStyle=shade(skinC,-0.16); ctx.globalAlpha=0.5; ctx.lineCap="round"; ctx.lineWidth=Math.max(1.2,fWp*0.008);
+        ctx.beginPath(); ctx.moveTo(jl.x+fWp*0.10, jl.y+fHp*0.04); ctx.lineTo(jl.x+fWp*0.14, neckBot); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(jr.x-fWp*0.10, jr.y+fHp*0.04); ctx.lineTo(jr.x-fWp*0.14, neckBot); ctx.stroke();
+        ctx.restore();
+        // 목 외곽선(좌우)
+        ctx.save(); ctx.strokeStyle=ink; ctx.lineCap="round"; ctx.globalAlpha=0.82; ctx.lineWidth=Math.max(2,fWp*0.013);
+        ctx.beginPath(); ctx.moveTo(jl.x, jl.y); ctx.lineTo(nLx, neckBot); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(jr.x, jr.y); ctx.lineTo(nRx, neckBot); ctx.stroke();
+        ctx.restore();
+      }
+      // 상의(옷) — 색 채움 + 스타일별 외곽선 두께 + 칼라 모양 + 주름/하이라이트
+      { const shirt=sc.shirt||"#5C7CB8", shirtSh=sc.shirtSh||"#43608F"; const topYsh=(neckBotY!=null? neckBotY-fHp*0.05 : xy+fHp*0.18);
+        const lwK=sc.shirtLW||1.0, collar=sc.collar||"round";
+        const outline=shade(shirtSh,-0.45), seam=shade(shirtSh,-0.28);
+        const shirtPath=()=>{ ctx.beginPath(); ctx.moveTo(Cx-fWp*0.12, topYsh); ctx.quadraticCurveTo(nx-fWp*0.25, topYsh+fHp*0.10, nx-fWp*0.45, H); ctx.lineTo(xx+fWp*0.45, H); ctx.quadraticCurveTo(xx+fWp*0.25, topYsh+fHp*0.10, Cx+fWp*0.12, topYsh); ctx.quadraticCurveTo(Cx, topYsh+fHp*0.06, Cx-fWp*0.12, topYsh); ctx.closePath(); };
+        // (a) 색 채움
+        const g=ctx.createLinearGradient(0,topYsh,0,H); g.addColorStop(0,shade(shirt,0.07)); g.addColorStop(1,shirtSh);
+        ctx.save(); ctx.fillStyle=g; shirtPath(); ctx.fill();
+        // (b) 색상 디테일(클립): 중앙 하이라이트·어깨 그늘·옷주름
+        shirtPath(); ctx.clip();
+        const nsh=ctx.createLinearGradient(0,topYsh-fHp*0.04,0,topYsh+fHp*0.14); nsh.addColorStop(0,"rgba(0,0,0,0.30)"); nsh.addColorStop(1,"rgba(0,0,0,0)"); ctx.fillStyle=nsh; ctx.fillRect(nx-fWp*0.5, topYsh-fHp*0.04, fWp*2, fHp*0.2);
+        const hl=ctx.createLinearGradient(Cx-fWp*0.34,0,Cx+fWp*0.34,0); hl.addColorStop(0,"rgba(255,255,255,0)"); hl.addColorStop(0.5,"rgba(255,255,255,0.15)"); hl.addColorStop(1,"rgba(255,255,255,0)"); ctx.fillStyle=hl; ctx.fillRect(nx-fWp*0.5, topYsh, fWp*2, H);
+        const shg=ctx.createLinearGradient(0,topYsh,0,H); shg.addColorStop(0,"rgba(0,0,0,0)"); shg.addColorStop(1,"rgba(0,0,0,0.18)"); ctx.fillStyle=shg; ctx.fillRect(nx-fWp*0.5, topYsh, fWp*2, H);
+        ctx.strokeStyle=seam; ctx.globalAlpha=0.5; ctx.lineCap="round"; ctx.lineWidth=Math.max(1.4,fWp*0.009)*lwK;
+        for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(Cx+s*fWp*0.18, topYsh+fHp*0.16); ctx.quadraticCurveTo(Cx+s*fWp*0.40, topYsh+fHp*0.34, Cx+s*fWp*0.34, H); ctx.stroke(); }
+        ctx.globalAlpha=1; ctx.restore();
+        // (c) 옷 외곽 — 스타일별 진한 선(전통과장일수록 두껍게)
+        ctx.save(); ctx.strokeStyle=outline; ctx.lineJoin="round"; ctx.lineWidth=Math.max(3,fWp*0.020)*lwK; shirtPath(); ctx.stroke(); ctx.restore();
+        // (d) 칼라 — 스타일별 모양(round/v/han)
+        ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round"; const cw=fWp*0.20, cy=topYsh, clw=Math.max(2.6,fWp*0.016)*lwK;
+        if(collar==="v"){
+          ctx.fillStyle=shade(shirt,-0.16);
+          ctx.beginPath(); ctx.moveTo(Cx-cw, cy-fHp*0.02); ctx.lineTo(Cx, cy+fHp*0.17); ctx.lineTo(Cx+cw, cy-fHp*0.02); ctx.lineTo(Cx+cw*0.58, cy-fHp*0.02); ctx.lineTo(Cx, cy+fHp*0.10); ctx.lineTo(Cx-cw*0.58, cy-fHp*0.02); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle=outline; ctx.lineWidth=clw; ctx.beginPath(); ctx.moveTo(Cx-cw, cy-fHp*0.02); ctx.lineTo(Cx, cy+fHp*0.17); ctx.lineTo(Cx+cw, cy-fHp*0.02); ctx.stroke();
+        } else if(collar==="han"){
+          // 전통 깃(겹쳐진 동정) — 두껍고 과장
+          const hw=cw*1.4;
+          ctx.fillStyle=shade(shirt,0.5);
+          ctx.beginPath(); ctx.moveTo(Cx-hw, cy+fHp*0.02); ctx.quadraticCurveTo(Cx-hw*0.2, cy+fHp*0.07, Cx, cy+fHp*0.24); ctx.quadraticCurveTo(Cx+hw*0.2, cy+fHp*0.07, Cx+hw, cy+fHp*0.02); ctx.lineTo(Cx+hw*0.78, cy-fHp*0.05); ctx.quadraticCurveTo(Cx+hw*0.1, cy+fHp*0.02, Cx, cy+fHp*0.15); ctx.quadraticCurveTo(Cx-hw*0.1, cy+fHp*0.02, Cx-hw*0.78, cy-fHp*0.05); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle=outline; ctx.lineWidth=clw*1.3;
+          ctx.beginPath(); ctx.moveTo(Cx-hw, cy+fHp*0.02); ctx.quadraticCurveTo(Cx-hw*0.2, cy+fHp*0.07, Cx, cy+fHp*0.24); ctx.quadraticCurveTo(Cx+hw*0.2, cy+fHp*0.07, Cx+hw, cy+fHp*0.02); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(Cx, cy+fHp*0.24); ctx.lineTo(Cx, H); ctx.stroke();
+        } else { // round (crew)
+          ctx.fillStyle=shade(shirt,-0.14);
+          ctx.beginPath(); ctx.moveTo(Cx-cw, cy-fHp*0.015); ctx.quadraticCurveTo(Cx, cy+fHp*0.12, Cx+cw, cy-fHp*0.015); ctx.quadraticCurveTo(Cx+cw*0.55, cy+fHp*0.02, Cx, cy+fHp*0.06); ctx.quadraticCurveTo(Cx-cw*0.55, cy+fHp*0.02, Cx-cw, cy-fHp*0.015); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle=outline; ctx.lineWidth=clw; ctx.beginPath(); ctx.moveTo(Cx-cw, cy-fHp*0.015); ctx.quadraticCurveTo(Cx, cy+fHp*0.13, Cx+cw, cy-fHp*0.015); ctx.stroke();
+        }
+        ctx.restore();
+      }
+      // 피부 채움(확장 오벌) — 머리 아래까지
+      ctx.save(); ctx.fillStyle=skinC; ctx.beginPath(); closed(ovSkin); ctx.fill();
+      ctx.beginPath(); closed(ovSkin); ctx.clip();
+      ctx.globalAlpha=0.16*(sc.shade||0.6)/0.6; ctx.fillStyle=shade(skinC,-0.18); ctx.beginPath(); ctx.ellipse(Cx, xy-fHp*0.06, fWp*0.5, fHp*0.22,0,0,Math.PI*2); ctx.fill();
+      const ssh=shade(skinC,-0.14);
+      const sgL=ctx.createLinearGradient(nx,0,nx+fWp*0.26,0); sgL.addColorStop(0,ssh); sgL.addColorStop(1,"rgba(0,0,0,0)"); ctx.globalAlpha=0.5; ctx.fillStyle=sgL; ctx.fillRect(nx,Cy-fHp*0.1,fWp*0.26,fHp*0.6);
+      const sgR=ctx.createLinearGradient(xx,0,xx-fWp*0.26,0); sgR.addColorStop(0,ssh); sgR.addColorStop(1,"rgba(0,0,0,0)"); ctx.fillStyle=sgR; ctx.fillRect(xx-fWp*0.26,Cy-fHp*0.1,fWp*0.26,fHp*0.6);
+      ctx.restore();
+      // 귀는 머리카락 '위'에서 그림 — Q1: 항상 살짝 보이게(아래 머리 블록 다음)
+      // 머리 면 + 광택 + 결(스트랜드) — 피부 위에
+      if(mappedHair.length){ const hrgb=hexToRGB(hairC), hi=shadeRGB(hrgb,0.26), hi2=shadeRGB(hrgb,0.52), sh=shadeRGB(hrgb,-0.42), sh2=shadeRGB(hrgb,-0.6);
+        let yA=1e9,yB=-1e9,hxa=1e9,hxb=-1e9; for(const mp of mappedHair) for(const p of mp){ if(p.y<yA)yA=p.y; if(p.y>yB)yB=p.y; if(p.x<hxa)hxa=p.x; if(p.x>hxb)hxb=p.x; }
+        const g=ctx.createLinearGradient(0,yA,0,yB); g.addColorStop(0,`rgb(${hi[0]},${hi[1]},${hi[2]})`); g.addColorStop(0.5,hairC); g.addColorStop(1,`rgb(${sh[0]},${sh[1]},${sh[2]})`);
+        for(const mp of mappedHair){ ctx.fillStyle=g; ctx.beginPath(); closed(mp); ctx.fill(); }
+        ctx.save(); ctx.beginPath(); for(const mp of mappedHair) closed(mp); ctx.clip();
+        const gx=(hxa+hxb)/2, gw=(hxb-hxa);
+        const hg=ctx.createRadialGradient(gx-gw*0.12, yA+(yB-yA)*0.22, 1, gx-gw*0.12, yA+(yB-yA)*0.22, gw*0.5); hg.addColorStop(0,`rgba(${hi2[0]},${hi2[1]},${hi2[2]},0.5)`); hg.addColorStop(1,"rgba(0,0,0,0)"); ctx.fillStyle=hg; ctx.fillRect(hxa,yA,gw,(yB-yA)*0.7);
+        // Q3) 머리카락 결 — 정수리에서 흘러내리는 가닥
+        ctx.lineCap="round"; const nST=14;
+        for(let i=0;i<nST;i++){ const fx=hxa+gw*(i+0.5)/nST + (Math.sin(i*1.7)*gw*0.02); const drift=gw*0.06*Math.sin(i*0.9);
+          ctx.strokeStyle = (i%2? `rgba(${hi2[0]},${hi2[1]},${hi2[2]},0.5)` : `rgba(${sh2[0]},${sh2[1]},${sh2[2]},0.45)`); ctx.lineWidth=Math.max(1,gw*0.006);
+          ctx.beginPath(); ctx.moveTo(fx, yA+(yB-yA)*0.04); ctx.quadraticCurveTo(fx+drift, yA+(yB-yA)*0.4, fx+drift*1.6, yA+(yB-yA)*0.82); ctx.stroke(); }
+        ctx.restore();
+      }
+      // 귀 — 머리 위에 그림 + 얼굴 옆 랜드마크 추종 + 중심선 yaw로 측면 대응(Q1~Q3)
+      if(photoLM){ const ek=sc.earK||1.0;
+        const earFill=shade(skinC,-0.04), earShd=shade(skinC,-0.24), earLn=ink;
+        const aL = lm[234]? warp(map(lm[234])) : {x:nx, y:Cy - fHp*0.02};
+        const aR = lm[454]? warp(map(lm[454])) : {x:xx, y:Cy - fHp*0.02};
+        const headW = Math.max(fWp*0.5, Math.hypot(aR.x-aL.x, aR.y-aL.y));
+        const ew=headW*0.085*ek, eh=headW*0.20*ek;
+        // Q1) yaw는 warp 단계의 faceYaw 재사용(왜곡 전 기준 → 측면 판정 정확)
+        const yaw=faceYaw;
+        const YAW_THR=0.22;
+        const drawLe = yaw > -YAW_THR, drawRe = yaw < YAW_THR;
+        const leftNear = yaw>0, ny=Math.abs(yaw), boost=1+0.55*ny;
+        const drawEar=(ex,ey,sgn,ewx,ehx)=>{ const ox=(d)=>ex - sgn*d, ix=(d)=>ex + sgn*d; ctx.save();
+          const rim=()=>{ ctx.beginPath();
+            ctx.moveTo(ix(ewx*0.35), ey - ehx*0.95);
+            ctx.quadraticCurveTo(ox(ewx*0.5), ey - ehx*1.02, ox(ewx*0.85), ey - ehx*0.5);
+            ctx.quadraticCurveTo(ox(ewx*1.05), ey - ehx*0.05, ox(ewx*0.82), ey + ehx*0.55);
+            ctx.quadraticCurveTo(ox(ewx*0.62), ey + ehx*0.95, ox(ewx*0.12), ey + ehx*0.98);
+            ctx.quadraticCurveTo(ix(ewx*0.34), ey + ehx*0.86, ix(ewx*0.42), ey + ehx*0.5);
+            ctx.quadraticCurveTo(ix(ewx*0.56), ey + ehx*0.12, ix(ewx*0.46), ey - ehx*0.4);
+            ctx.quadraticCurveTo(ix(ewx*0.42), ey - ehx*0.78, ix(ewx*0.35), ey - ehx*0.95);
+            ctx.closePath(); };
+          ctx.fillStyle=earFill; rim(); ctx.fill();
+          ctx.strokeStyle=earLn; ctx.globalAlpha=0.85; ctx.lineJoin="round"; ctx.lineWidth=Math.max(1.6,fWp*0.011); rim(); ctx.stroke();
+          ctx.globalAlpha=0.6; ctx.strokeStyle=earShd; ctx.lineCap="round"; ctx.lineWidth=Math.max(1.4,fWp*0.009);
+          ctx.beginPath(); ctx.moveTo(ox(ewx*0.1), ey - ehx*0.55); ctx.quadraticCurveTo(ox(ewx*0.62), ey - ehx*0.12, ox(ewx*0.32), ey + ehx*0.48); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(ix(ewx*0.2), ey - ehx*0.12); ctx.quadraticCurveTo(ix(ewx*0.42), ey + ehx*0.06, ix(ewx*0.16), ey + ehx*0.34); ctx.stroke();
+          ctx.restore();
+        };
+        // Q2) 보이는(앞) 쪽 귀는 더 크게 + 얼굴 쪽으로 당겨 측면 원근감
+        if(drawLe){ const near=leftNear, scl=near?boost:1, pull=near?0.40*ny*ew:0; drawEar(aL.x - ew*0.40 + pull, aL.y, +1, ew*scl, eh*scl); }
+        if(drawRe){ const near=!leftNear, scl=near?boost:1, pull=near?-0.40*ny*ew:0; drawEar(aR.x + ew*0.40 + pull, aR.y, -1, ew*scl, eh*scl); }
+      }
+      // 볼터치
+      const bl=(idxs)=>{ try{ const c=warp(map(centroid(lm,idxs))); const R=fWp*0.11; const g=ctx.createRadialGradient(c.x,c.y,1,c.x,c.y,R); g.addColorStop(0,`rgba(236,118,126,${sc.blush||0.34})`); g.addColorStop(1,"rgba(236,118,126,0)"); ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(c.x,c.y,R,R*0.62,0,0,Math.PI*2); ctx.fill(); }catch(_){} };
+      bl(CHEEK_A); bl(CHEEK_B);
+      // 입술 면(연한 컬러)
+      const lipF=ring(lm,OUTER_LIP).map(wmap); if(lipF.length>3){ ctx.save(); ctx.fillStyle="rgba(193,98,98,0.55)"; ctx.beginPath(); closed(lipF); ctx.fill(); ctx.restore(); }
+    }
+    // 1) 사진 라인아트(에지) — '선화' 스타일/스케치 모드에서만 표시(컬러 스타일에선 숨김)
+    if(!colorOn || sketchMode){
+      const tp=document.createElement("canvas"); tp.width=W; tp.height=H; const tpx=tp.getContext("2d");
+      tpx.imageSmoothingEnabled=true; tpx.imageSmoothingQuality="high"; ctx.imageSmoothingQuality="high"; tpx.setTransform(m.scale,0,0,m.scale, m.headCx-m.fcx*m.scale, m.headCy-m.fcy*m.scale); tpx.drawImage(photoLineArt,0,0); tpx.setTransform(1,0,0,1,0,0);
+      const bandH=4; for(let y=0;y<H;y+=bandH){ const sy=Math.min(bandH,H-y); const sx=sxAt(y+sy/2); ctx.drawImage(tp, 0,y, W,sy, Cx*(1-sx), y, W*sx, sy); }
+    }
+    // 2) (머리 외곽선 스트로크 제거 — 이마 마스크 선 방지. 머리는 컬러 면/비트맵 에지로 표현)
+    // 3) 턱·볼 외곽선(warp, 이마는 긋지 않음)
+    const JAW=[234,93,132,58,172,136,150,149,176,148,152,377,400,378,379,365,397,288,361,323,454];
+    const jaw=JAW.filter(i=>lm[i]).map(wmap);
+    if(jaw.length>3){ ctx.save(); ctx.strokeStyle=ink; ctx.lineJoin="round"; ctx.lineCap="round"; ctx.lineWidth=Math.max(2.6,fWp*0.018); ctx.globalAlpha=0.92; openPath(jaw); ctx.restore(); }
+    // 4) 옆얼굴(광대~턱옆) 옅은 보조선만 — 이마 가로선은 그리지 않음
+    const sideL=ov.map(warp).filter(p=> p.x<Cx-fWp*0.30 && p.y>Cy-fHp*0.12 && p.y<Cy+fHp*0.20).sort((a,b)=>a.y-b.y);
+    const sideR=ov.map(warp).filter(p=> p.x>Cx+fWp*0.30 && p.y>Cy-fHp*0.12 && p.y<Cy+fHp*0.20).sort((a,b)=>a.y-b.y);
+    ctx.save(); ctx.strokeStyle=ink; ctx.globalAlpha=0.28; ctx.lineCap="round"; ctx.lineWidth=Math.max(1.6,fWp*0.011); openPath(sideL); openPath(sideR); ctx.restore();
+    // 5) 랜드마크 보조선 — 눈썹/눈/입 (Q1 스타일별 개성 + Q3 자동 농도 + Q2 핵심선 강조)
+    const fA=0.72+0.28*fb, fWmul=1+0.4*fb; // featBoost 반영
+    const coreK=sc.coreLine||1.0; // 컬러 스타일 닮음 강화(눈매·코 강조)
+    const eyeEnl=sc.eyeEnl||1.18, browMul=sc.browMul||1.0, eyeAspect=sc.eyeAspect||1.0, eyeTilt=sc.eyeTilt||0, browTilt=sc.browTilt||0, eyeInnerDrop=sc.eyeInnerDrop||0;
+    const browStroke=(idxs)=>{ const s=[...idxs].filter(i=>lm[i]).sort((a,b)=>lm[a].x-lm[b].x).map(wmap); if(s.length<2) return; if(browTilt){ const bcx=s.reduce((a,q)=>a+q.x,0)/s.length, btd=Math.sign(bcx-Cx)||1; for(const q of s){ q.y -= browTilt*(q.x-bcx)*btd; } } ctx.save(); ctx.globalAlpha=fA; ctx.strokeStyle=ink; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.lineWidth=Math.max(3,fWp*0.022)*fWmul*browMul; openPath(s); ctx.restore(); };
+    browStroke(browLIdx); browStroke(browRIdx);
+    const eyeStroke=(idxs)=>{ const c=warp(map(centroid(lm,idxs))); const tdir=Math.sign(c.x-Cx)||1; const s=ring(lm,idxs).map(i=>{ const p=wmap(i); const ex=c.x+(p.x-c.x)*eyeEnl, ey=c.y+(p.y-c.y)*(eyeEnl*1.05*eyeAspect); const hz=(ex-c.x)*tdir; let yy=ey - eyeTilt*hz; if(hz<0) yy -= eyeInnerDrop*hz; return {x:ex, y:yy}; }); if(s.length<3) return; ctx.save(); ctx.globalAlpha=Math.min(1,fA*coreK); ctx.strokeStyle=ink; ctx.lineJoin="round"; ctx.lineWidth=Math.max(2,fWp*0.013)*fWmul*coreK; ctx.beginPath(); closed(s); ctx.stroke();
+      { let lp=s[0],rp=s[0],tp=s[0]; for(const q of s){ if(q.x<lp.x)lp=q; if(q.x>rp.x)rp=q; if(q.y<tp.y)tp=q; }
+        ctx.lineCap="round"; ctx.lineWidth=Math.max(2.4,fWp*0.016)*fWmul*coreK; ctx.beginPath(); ctx.moveTo(lp.x,lp.y); ctx.quadraticCurveTo(tp.x,tp.y-fHp*0.006,rp.x,rp.y); ctx.stroke();
+        const outer=(Math.abs(lp.x-Cx)>Math.abs(rp.x-Cx))?lp:rp, inner=(outer===lp)?rp:lp, dir=Math.sign(outer.x-inner.x)||1;
+        ctx.lineWidth=Math.max(2,fWp*0.012)*coreK; ctx.beginPath(); ctx.moveTo(outer.x,outer.y); ctx.quadraticCurveTo(outer.x+dir*fWp*0.03,outer.y-fHp*0.004,outer.x+dir*fWp*0.052,outer.y+fHp*0.012); ctx.stroke(); }
+      const pr=Math.max(2,fWp*0.020)*(eyeEnl>1.3?1.25:1)*coreK; ctx.globalAlpha=1; ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(c.x,c.y,pr,0,Math.PI*2); ctx.fill(); ctx.fillStyle="rgba(255,255,255,0.92)"; ctx.beginPath(); ctx.arc(c.x-pr*0.38,c.y-pr*0.38,pr*0.34,0,Math.PI*2); ctx.fill(); ctx.restore(); };
+    eyeStroke(eyeLIdx); eyeStroke(eyeRIdx);
+    const lip=ring(lm,OUTER_LIP).map(wmap); if(lip.length>3){ ctx.save(); ctx.globalAlpha=fA; ctx.strokeStyle=ink; ctx.lineJoin="round"; ctx.lineWidth=Math.max(2,fWp*0.014)*fWmul; ctx.beginPath(); closed(lip); ctx.stroke(); ctx.restore(); }
+    // 5-b) 코 — 콧대(한쪽 음영선) + 코끝~콧방울 곡선 (Q2: 컬러 스타일 닮음 강화)
+    try{ const nbTop=lm[168]?wmap(168):null, nTip=lm[4]?wmap(4):(lm[1]?wmap(1):null), alaL=lm[98]?wmap(98):null, alaR=lm[327]?wmap(327):null;
+      ctx.save(); ctx.strokeStyle=ink; ctx.lineCap="round"; ctx.lineJoin="round";
+      if(nbTop&&nTip){ ctx.globalAlpha=0.42*coreK; ctx.lineWidth=Math.max(1.5,fWp*0.0095)*coreK; ctx.beginPath(); ctx.moveTo(nbTop.x-fWp*0.018, nbTop.y); ctx.quadraticCurveTo(nTip.x-fWp*0.055, (nbTop.y+nTip.y)/2, nTip.x-fWp*0.02, nTip.y); ctx.stroke(); }
+      ctx.globalAlpha=Math.min(0.85,0.6*coreK); ctx.lineWidth=Math.max(1.6,fWp*0.011)*coreK;
+      if(nTip&&alaL){ ctx.beginPath(); ctx.moveTo(nTip.x-fWp*0.02, nTip.y); ctx.quadraticCurveTo(nTip.x-fWp*0.06, nTip.y+fHp*0.02, alaL.x, alaL.y); ctx.stroke(); }
+      if(nTip&&alaR){ ctx.beginPath(); ctx.moveTo(nTip.x+fWp*0.02, nTip.y); ctx.quadraticCurveTo(nTip.x+fWp*0.06, nTip.y+fHp*0.02, alaR.x, alaR.y); ctx.stroke(); }
+      ctx.restore();
+    }catch(_){}
+    // 6) 콧방울 점(코 또렷)
+    try{ if(lm[98]&&lm[327]){ const nl=wmap(98), nr=wmap(327); const nrr=Math.max(1.5,fWp*0.013)*coreK; ctx.fillStyle=`rgba(50,38,34,${Math.min(0.9,(0.45+0.3*fb)*coreK)})`; ctx.beginPath(); ctx.ellipse(nl.x,nl.y,nrr,nrr*0.7,0,0,Math.PI*2); ctx.ellipse(nr.x,nr.y,nrr,nrr*0.7,0,0,Math.PI*2); ctx.fill(); } }catch(_){}
+    // 7) 종이 질감(그레인)
+    if(!sketchMode){ try{ const noise=getPaperNoise(); ctx.save(); ctx.globalAlpha=0.5; for(let yy=0;yy<H;yy+=160) for(let xx2=0;xx2<W;xx2+=160) ctx.drawImage(noise,xx2,yy); ctx.restore(); }catch(_){} }
+    // Q3) 측면 각도가 크면(거의 옆모습) 정면 권장 힌트 플래그(화면 표시는 bakePhotoCaricature에서)
+    yawHintOn = Math.abs(faceYaw) > 0.45;
+    return warpMap;
   }
   function buildHairLayer(mask, mw, mh, hairRGB){
     const hb=morphHair(mask, mw, mh);
@@ -576,7 +905,8 @@
   function drawCaricature(ctx,P,w,h,map,st,transparent,opts){
     opts=opts||{};
     const realHair = opts.hair && opts.hair.canvas;
-    const hideSynthHair = realHair || opts.hairScreen;
+    const usePoly = opts.hairPoly && opts.hairPoly.polys && opts.hairPoly.polys.length;
+    const hideSynthHair = realHair || opts.hairScreen || usePoly;
     if(!transparent){ ctx.fillStyle=PAL.paper; ctx.fillRect(0,0,w,h); }
     else ctx.clearRect(0,0,w,h);
     ctx.lineJoin="round"; ctx.lineCap="round";
@@ -628,7 +958,26 @@
     ctx.quadraticCurveTo(maxX+fW*0.14, minY-fH*0.20, maxX+fW*0.08, C.y+fH*0.16);
     ctx.quadraticCurveTo(C.x, C.y+fH*0.30, minX-fW*0.08, C.y+fH*0.16);
     ctx.closePath(); ctx.fill(); }
-    // 1-b) 실제 머리일 때: 얼굴 윗윤곽을 따라 머리색 '크라운 캡' → 헤어라인 공백을 헤어라인 그림자 톤으로 메움
+    // 1-v) 벡터 헤어(컨투어) — 얼굴 뒤에 플랫 일러스트로 깔끔하게(틈 없음·또렷한 외곽)
+    if(usePoly){ const polys=opts.hairPoly.polys;
+      const closedSmooth=(pp)=>{ const n=pp.length; if(n<3){ pp.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); return; }
+        ctx.moveTo((pp[n-1].x+pp[0].x)/2,(pp[n-1].y+pp[0].y)/2);
+        for(let i=0;i<n;i++){ const cur=pp[i], nxt=pp[(i+1)%n]; ctx.quadraticCurveTo(cur.x,cur.y,(cur.x+nxt.x)/2,(cur.y+nxt.y)/2); } ctx.closePath(); };
+      const hrgb=hexToRGB(hair); const hiC=shadeRGB(hrgb,0.30), shC=shadeRGB(hrgb,-0.42);
+      let yA=1e9,yB=-1e9; const mapped=polys.map(poly=>poly.map(map));
+      for(const mp of mapped) for(const p of mp){ if(p.y<yA)yA=p.y; if(p.y>yB)yB=p.y; }
+      const g=ctx.createLinearGradient(0,yA,0,yB);
+      g.addColorStop(0,`rgb(${hiC[0]},${hiC[1]},${hiC[2]})`); g.addColorStop(0.45,hair); g.addColorStop(1,`rgb(${shC[0]},${shC[1]},${shC[2]})`);
+      for(const mp of mapped){
+        ctx.fillStyle=g; ctx.beginPath(); closedSmooth(mp); ctx.fill();
+        // 정수리 광택(살짝)
+        ctx.save(); ctx.beginPath(); closedSmooth(mp); ctx.clip(); ctx.globalAlpha=0.35; ctx.fillStyle=`rgb(${hiC[0]},${hiC[1]},${hiC[2]})`;
+        ctx.beginPath(); ctx.ellipse(C.x, yA+(yB-yA)*0.12, fW*0.4, fH*0.22,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+        // 또렷한 외곽선
+        ctx.strokeStyle=PAL.line; ctx.lineWidth=lw*1.1; ctx.beginPath(); closedSmooth(mp); ctx.stroke();
+      }
+    }
+    // 1-b) 실제 머리(비트맵)일 때: 얼굴 윗윤곽을 따라 머리색 '크라운 캡' → 헤어라인 공백을 헤어라인 그림자 톤으로 메움
     if(realHair){ const topPts=ovPts.filter(p=> p.y < C.y - fH*0.02).sort((a,b)=>a.x-b.x);
       if(topPts.length>2){ ctx.save();
         // 위(머리쪽)는 머리색, 아래(이마 경계)는 어두운 헤어라인 그림자 → 경계가 자연스럽게 묻힘
@@ -668,7 +1017,7 @@
 
     // ===== 3) 얼굴 면 + 3톤 음영(윤곽을 따라) =====
     // 얼굴 윗부분만 살짝 키워 머리 쪽으로 겹치게(피부가 헤어라인까지 닿아 공백 방지). 윤곽선/음영은 원본 사용.
-    const fillPts=ovPts.map(p=>{ if(p.y<C.y){ const t=(C.y-p.y)/Math.max(1,(C.y-minY)); const k=1+0.06*t; return {x:C.x+(p.x-C.x)*k, y:C.y+(p.y-C.y)*k}; } return p; });
+    const fillPts=ovPts.map(p=>{ if(p.y<C.y){ const t=(C.y-p.y)/Math.max(1,(C.y-minY)); const k=1+0.11*t; return {x:C.x+(p.x-C.x)*k, y:C.y+(p.y-C.y)*k-fH*0.03*t}; } return p; });
     ctx.fillStyle=skin; smoothPoly(ctx,fillPts); ctx.fill();
     ctx.save(); smoothPoly(ctx,ovPts); ctx.clip();
     // 하이라이트(이마·콧대·광대)
@@ -682,10 +1031,11 @@
     ctx.beginPath(); ctx.ellipse(C.x, maxY-fH*0.09, fW*0.44, fH*0.20,0,0,Math.PI*2); ctx.fill();
     ctx.globalAlpha=0.5*st.shade; ctx.beginPath(); ctx.ellipse(C.x, minY+fH*0.03, fW*0.52, fH*0.11,0,0,Math.PI*2); ctx.fill();
     ctx.restore();
-    // 윤곽선(아래로 갈수록 두껍게)
-    ctx.strokeStyle=PAL.line; ctx.lineWidth=lw*1.4; smoothPoly(ctx,ovPts); ctx.stroke();
-    const lowOv=ovPts.filter(p=>p.y>C.y+fH*0.06).sort((a,b)=>a.x-b.x);
-    if(lowOv.length>1){ ctx.lineWidth=lw*2.1; ctx.beginPath(); lowOv.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); }
+    // 윤곽선 — 턱·볼만(이마/헤어라인은 긋지 않음 → 마스크 구분선 제거). 머리가 윗부분을 덮음.
+    const JAWc=[234,93,132,58,172,136,150,149,176,148,152,377,400,378,379,365,397,288,361,323,454];
+    const jawPts=JAWc.filter(i=>P[i]).map(i=>map(P[i]));
+    if(jawPts.length>3){ ctx.strokeStyle=PAL.line; ctx.lineJoin="round"; ctx.lineCap="round"; ctx.lineWidth=lw*1.7;
+      ctx.beginPath(); ctx.moveTo(jawPts[0].x,jawPts[0].y); for(let i=1;i<jawPts.length;i++){ const a=jawPts[i-1], b=jawPts[i]; ctx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2); } const Lp=jawPts[jawPts.length-1]; ctx.lineTo(Lp.x,Lp.y); ctx.stroke(); }
 
     // ===== 3-3) 실제 머리카락 — 얼굴 위에 합성 =====
     if(realHair){ const o=map({x:0,y:0}), ux=map({x:1,y:0}), uy=map({x:0,y:1}); const HW=opts.hair.width, HH=opts.hair.height;
@@ -693,7 +1043,7 @@
     else if(opts.hairScreen){ ctx.save(); ctx.imageSmoothingEnabled=true; ctx.drawImage(opts.hairScreen,0,0,w,h); ctx.restore(); }
 
     // ===== 3-4) 헤어라인 잔머리(베이비헤어) — 경계 흐리기 =====
-    if(realHair || opts.hairScreen){ const hl=ovPts.filter(p=> p.y < C.y - fH*0.04).sort((a,b)=>a.x-b.x);
+    if(realHair || opts.hairScreen || usePoly){ const hl=ovPts.filter(p=> p.y < C.y - fH*0.04).sort((a,b)=>a.x-b.x);
       if(hl.length>4){ const hrgb=hexToRGB(hair), shrgb=hexToRGB(hairSh); ctx.save(); ctx.lineCap="round";
         const N=Math.min(14, hl.length);
         for(let i=0;i<N;i++){ const p=hl[Math.floor(i*(hl.length-1)/(N-1))]; const seed=(i*53)%7, dir=(i%2?1:-1);
@@ -835,10 +1185,10 @@
     const centers=[], datas=[]; let count=0;
     const pushW=(c,R,s,dir)=>{ if(count>=8||!c||s===0) return; centers.push(c.x/CW(), c.y/CH()); datas.push(R,s,dir); count++; };
     if(faceFound){ const R=cheekR_px, dmg=dmgLevel();
-      pushW(cheekL,(R*1.35)/CH(), -0.6*dentL,0); pushW(cheekR,(R*1.35)/CH(), -0.6*dentR,0);
+      pushW(cheekL,(R*1.45)/CH(), -0.82*dentL,0); pushW(cheekR,(R*1.45)/CH(), -0.82*dentR,0);
       pushW(noseP,(R*0.9)/CH(), -0.35*dmg,0); pushW(mouthP,(R*1.0)/CH(), -0.40*dmg,0); }
     for(const w of warps){ if(count>=8) break; const e=(performance.now()-w.born)/w.dur; if(e>1) continue; const c=w.side==="L"?cheekL:cheekR; if(!c) continue;
-      const a = e<0.12 ? (e/0.12) : Math.exp(-5*(e-0.12))*Math.cos(13*(e-0.12)); pushW(c, cheekR_px/CH(), a, w.side==="L"?1:-1); }
+      const a = e<0.12 ? (e/0.12) : Math.exp(-5*(e-0.12))*Math.cos(13*(e-0.12)); pushW(c, (cheekR_px*1.12)/CH(), a*1.35, w.side==="L"?1:-1); }
     while(centers.length<16) centers.push(0); while(datas.length<24) datas.push(0);
     gl.useProgram(prog); gl.uniform1f(uAspect,CW()/CH()); gl.uniform1i(uCount,count);
     gl.uniform2fv(uCenter,new Float32Array(centers)); gl.uniform3fv(uData,new Float32Array(datas)); gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
@@ -900,6 +1250,12 @@
   function renderCaricatureTo(S, dmgPair){ // dmgPair=[dL,dR] 또는 null
     const lm = mode==="photo"? photoLM : liveLM; if(!lm) return null;
     const cc=document.createElement("canvas"); cc.width=S; cc.height=S; const cx=cc.getContext("2d");
+    if(mode==="photo" && photoLineArt){
+      const map=composeLineArt(cx,S,S,lm,photoW||1,photoH||1,true);
+      if(dmgPair && map){ const f=featurePts(lm,map); const R=Math.max(20,f.sep*0.42);
+        paintDamage(cx, {cheekL:f.L,cheekR:f.R,noseP:f.nose,mouthP:f.mouth}, R, dmgPair[0], dmgPair[1], HANDS[hand], true); }
+      return cc;
+    }
     const P=caricatureEDFM(lm, ST()); const mir=(mode==="webcam");
     const AW = mode==="photo"? (photoW||1) : (CW()||1), AH = mode==="photo"? (photoH||1) : (CH()||1);
     const ax=i=> (mir?(1-P[i].x):P[i].x)*AW, ay=i=> P[i].y*AH;
@@ -907,7 +1263,7 @@
     const fcx=(x0+x1)/2, fcy=(y0+y1)/2, fwpx=Math.max(1,x1-x0);
     const headFrac=ST().bigHead?0.44:0.52, scale=(S*headFrac)/fwpx;
     const map=p=>({ x:S/2 + ((mir?(1-p.x):p.x)*AW - fcx)*scale, y:S*0.40 + (p.y*AH - fcy)*scale });
-    drawCaricature(cx,P,S,S,map, styledST(), true, { hair: mode==="photo"?hairLayer:null, shadow: exportBg==="transparent" });
+    drawCaricature(cx,P,S,S,map, styledST(), true, { hair: mode==="photo"?hairLayer:null, hairPoly: mode==="photo"?photoHairPoly:null, shadow: exportBg==="transparent" });
     if(dmgPair){ const f=featurePts(P,map); const R=Math.max(20,f.sep*0.42);
       paintDamage(cx, {cheekL:f.L,cheekR:f.R,noseP:f.nose,mouthP:f.mouth}, R, dmgPair[0], dmgPair[1], HANDS[hand], true); }
     return cc;
@@ -931,6 +1287,23 @@
       setStatus("ok", (dmgVer?"참교육 후 ":"")+(wm?"무료":"프리미엄")+" PNG 저장 완료 ("+S+"px)"); }, "image/png");
     el("exportModal").classList.add("hidden");
   }
+  // ── DemoCaricature용 스케치 PNG 내보내기 (흰 배경 + 검은 선, 색·노이즈·볼터치 제거) ──
+  function exportSketchPNG(){
+    const lm = mode==="photo"? photoLM : liveLM;
+    if(mode!=="photo" || !photoLM || !photoLineArt){ setStatus("fail","사진을 올려야 스케치를 만들 수 있어요"); return; }
+    const S=1024;
+    const cc=document.createElement("canvas"); cc.width=S; cc.height=S; const cx=cc.getContext("2d");
+    cx.fillStyle="#ffffff"; cx.fillRect(0,0,S,S);
+    const prevStyle=style, prevSketch=sketchMode;
+    style="line"; sketchMode=true;
+    try{ composeLineArt(cx,S,S,lm,photoW||1,photoH||1,true); }
+    catch(e){ console.warn("sketch export 실패", e); }
+    style=prevStyle; sketchMode=prevSketch;
+    cc.toBlob((blob)=>{ if(!blob){ setStatus("fail","스케치 저장 실패"); return; }
+      const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=`chamgyo_sketch_${S}.png`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+      setStatus("ok","스케치 PNG 저장 완료 — DemoCaricature 입력으로 사용하세요"); }, "image/png");
+    el("exportModal").classList.add("hidden");
+  }
   // 등급(누적 참교육 횟수 기준)
   function rankOf(total){
     if(total>=2000) return {t:"참교육 그랜드마스터",e:"🏆"};
@@ -952,7 +1325,7 @@
     g.textAlign="center"; g.fillStyle="#FFD23F"; g.font='800 64px "Black Han Sans", sans-serif'; g.fillText("참교육 성적표", W/2, 116);
     g.fillStyle="#EFEAF7"; g.font='600 30px Pretendard, sans-serif'; g.fillText("오늘의 스트레스, 참교육 완료", W/2, 162);
     // 캐리커쳐(참교육 후 · KO)
-    const car=renderCaricatureTo(600, DMG_PRESET.ko);
+    const car=renderCaricatureTo(900, DMG_PRESET.ko);
     if(car){ const cy=196; g.save(); g.beginPath(); g.arc(W/2, cy+290, 280,0,Math.PI*2); g.fillStyle="#241a3d"; g.fill();
       g.beginPath(); g.arc(W/2, cy+290, 280,0,Math.PI*2); g.clip(); g.drawImage(car, W/2-300, cy, 600,600); g.restore();
       g.strokeStyle="#FF2E4D"; g.lineWidth=8; g.beginPath(); g.arc(W/2, cy+290, 280,0,Math.PI*2); g.stroke(); }
@@ -971,6 +1344,10 @@
     cells.forEach((c,i)=>{ const x=sx+i*(bw+gap); g.fillStyle="#1c1530"; roundRect(g,x,sy,bw,150,18); g.fill(); g.strokeStyle="#3a2e57"; g.lineWidth=2; roundRect(g,x,sy,bw,150,18); g.stroke();
       g.fillStyle="#FF6B81"; g.font='800 58px "Black Han Sans", sans-serif'; g.fillText(String(c[1]), x+bw/2, sy+76);
       g.fillStyle="#B9B0CC"; g.font='600 26px Pretendard, sans-serif'; g.fillText(c[0], x+bw/2, sy+118); });
+    { const acc=(tPerfect+tGood+tMiss)>0? Math.round(tPerfect/(tPerfect+tGood+tMiss)*100):null;
+      g.fillStyle="#C9BEF0"; g.font='700 28px Pretendard, sans-serif';
+      g.fillText("🎯 정밀단속 정확도 "+(acc!=null?acc+"%":"-")+"  (P"+tPerfect+"/G"+tGood+"/M"+tMiss+")", W/2, 1168);
+      g.fillStyle="#FF9DAC"; g.fillText("🚨 긴급출동 FEVER 최고 "+(gameRecords.speedFeverBest||0)+"회 · 정밀단속 최고연속 "+(gameRecords.timingBestStreak||0), W/2, 1208); }
     g.fillStyle="#8A7FA6"; g.font='600 30px Pretendard, sans-serif'; g.fillText(`${todayKey()} · 참교육 LAB · chamgyo.app`, W/2, 1292);
     ec.toBlob((blob)=>{ if(!blob){ setStatus("fail","성적표 저장 실패"); return; } const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=`chamgyo_scorecard_${Date.now()}.png`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); setStatus("ok","🏆 성적표를 저장했어요 — 자랑해 보세요!"); }, "image/png");
     el("exportModal").classList.add("hidden");
@@ -994,6 +1371,12 @@
 
   /* ─────────── 때리기 ─────────── */
   const WORDS=["참교육!","찰싹!","철썩!","퍽!","짝!"];
+  function playPerfect(streak){ if(!audioCtx) return; const t=audioCtx.currentTime, base=660*Math.pow(2,(Math.min(8,streak)-1)/12);
+    [0,1].forEach((k,i)=>{ const o=audioCtx.createOscillator(); o.type="triangle"; o.frequency.setValueAtTime(base*(i?1.5:1),t+i*0.04);
+      const g=audioCtx.createGain(); g.gain.setValueAtTime(0.0001,t+i*0.04); g.gain.exponentialRampToValueAtTime(0.5,t+i*0.04+0.004); g.gain.exponentialRampToValueAtTime(0.0001,t+i*0.04+0.16);
+      o.connect(g).connect(audioCtx.destination); o.start(t+i*0.04); o.stop(t+i*0.04+0.18); }); }
+  let gameSaveTimer=null; function saveGame(){ clearTimeout(gameSaveTimer); gameSaveTimer=setTimeout(()=>{ try{ Store.set(GAME_KEY, gameRecords); }catch(_){} }, 400); }
+  function playTick(){ if(!audioCtx) return; const t=audioCtx.currentTime; const o=audioCtx.createOscillator(); o.type="square"; o.frequency.setValueAtTime(1500,t); const g=audioCtx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.12,t+0.002); g.gain.exponentialRampToValueAtTime(0.0001,t+0.05); o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t+0.06); }
   const HANDS={
     ufc:   {glyph:"🥊", size:1.6,  dent:1.7,  shake:24, power:1.45, swell:1.5,  bruiseAt:0.16, bloodAt:0.32, cutAt:0.40, drips:3},
     fine:  {glyph:"💅", size:0.85, dent:0.55, shake:9,  power:0.7,  swell:0.5,  bruiseAt:0.55, bloodAt:0.96, cutAt:1.20, drips:1},
@@ -1002,14 +1385,25 @@
   function slap(side){
     if(timed.active && performance.now()>timed.endTime) return;
     const target=side==="L"?cheekL:cheekR; if(!faceFound||!target) return;
+    let timingMul=1, comboBonus=0;
+    if(gameMode==="timing"){ const ph=(performance.now()%BEAT_MS)/BEAT_MS, off=Math.min(ph,1-ph);
+      if(off>0.17){ lastJudge={text:"MISS",color:"#FF2E4D",born:performance.now()}; combo=0; perfectStreak=0; tMiss++; el("comboNum").textContent="0"; el("comboBadge").classList.remove("show"); shakeMag=Math.max(shakeMag,6); ensureAudio(); return; }
+      else if(off<0.07){ perfectStreak++; tPerfect++; timingMul=1.5+Math.min(0.7,perfectStreak*0.08); comboBonus=Math.min(4,Math.floor(perfectStreak/2));
+        lastJudge={text: perfectStreak>=2? "PERFECT x"+perfectStreak : "PERFECT", color:"#FFD23F", born:performance.now()}; ensureAudio(); playPerfect(perfectStreak);
+        if(perfectStreak>gameRecords.timingBestStreak){ gameRecords.timingBestStreak=perfectStreak; el("mTiming").textContent=perfectStreak; saveGame(); } }
+      else { perfectStreak=0; tGood++; lastJudge={text:"GOOD",color:"#4ADE80",born:performance.now()}; } }
+    const feverNow=(gameMode==="speed" && performance.now()<feverUntil), feverMul=feverNow?2:1;
     const hp=HANDS[hand]; ensureAudio(); playSlap(hp.power);
+    hitPulse=1; // 타격 스쿼시 애니메이션
     warps.push({born:performance.now(), dur:460, side});
-    const step=DENT_STEP*hp.dent; if(side==="L") dentL=Math.min(DENT_MAX,dentL+step); else dentR=Math.min(DENT_MAX,dentR+step);
+    const step=DENT_STEP*hp.dent*timingMul*feverMul; if(side==="L") dentL=Math.min(DENT_MAX,dentL+step); else dentR=Math.min(DENT_MAX,dentR+step);
     const dCur=side==="L"?dentL:dentR, bloody=dCur>=hp.bloodAt;
     effects.push(makePalm(side)); effects.push(makeText(target)); spawnParticles(target, bloody);
+    if(feverNow){ spawnParticles(target, true); effects.push(makeText(target)); shakeMag=Math.max(shakeMag, hp.shake*1.7); }
     if(bloody) spawnBlood(target, hp);
     shakeMag=hp.shake; shakeRot=(side==="L"?1:-1)*0.035;
-    const now=performance.now(); combo=(now-lastHit<1500)?combo+1:1; lastHit=now; total++; best=Math.max(best,combo);
+    const now=performance.now(); combo=(now-lastHit<1500)?combo+1:1; if(comboBonus) combo+=comboBonus; lastHit=now; total++; best=Math.max(best,combo);
+    if(gameMode==="speed"){ const fever=now<feverUntil; gauge=Math.min(1, gauge + (fever?0.10:0.075)); if(gauge>=1 && !fever){ feverUntil=now+2200; gauge=0.25; lastJudge={text:"FEVER!",color:"#FF2E4D",born:now}; shakeMag=Math.max(shakeMag,20); speedFeverRun++; if(speedFeverRun>gameRecords.speedFeverBest){ gameRecords.speedFeverBest=speedFeverRun; el("mSpeed").textContent=speedFeverRun; saveGame(); } try{playStamp();}catch(_){}}}
     el("mTotal").textContent=total; el("mBest").textContent=best;
     const cn=el("comboNum"); cn.textContent=combo; cn.classList.add("pop"); setTimeout(()=>cn.classList.remove("pop"),60);
     el("tapHint").classList.remove("show");
@@ -1120,9 +1514,31 @@
     if(faceFound){ const p=1+Math.sin(now/240)*0.16; if(cheekL) reticle(cheekL.x,cheekL.y,"#FF2E4D",p); if(cheekR) reticle(cheekR.x,cheekR.y,"#FFD23F",p); }
     for(let i=effects.length-1;i>=0;i--){ const f=effects[i]; f.draw(now); if(now-f.born>f.dur) effects.splice(i,1); }
     for(let i=warps.length-1;i>=0;i--){ if(now-warps[i].born>warps[i].dur) warps.splice(i,1); }
+    drawGameFx(now);
+    if(hitPulse>0.01){ const sp=hitPulse, t="scale("+(1+0.05*sp).toFixed(3)+","+(1-0.06*sp).toFixed(3)+")"; glCanvas.style.transform=t; fxCanvas.style.transform=t; hitPulse*=0.78; } else if(hitPulse!==0){ glCanvas.style.transform="none"; fxCanvas.style.transform="none"; hitPulse=0; }
     if(shakeMag>0.2){ const dx=(Math.random()*2-1)*shakeMag, dy=(Math.random()*2-1)*shakeMag; shake.style.transform=`translate(${dx}px,${dy}px) rotate(${shakeRot}rad)`; shakeMag*=0.84; shakeRot*=0.84; } else shake.style.transform="none";
   }
   function reticle(x,y,color,p){ const r=15*p; fx.save(); fx.translate(x,y); fx.strokeStyle=color; fx.lineWidth=2; fx.globalAlpha=.85; fx.shadowColor=color; fx.shadowBlur=10; fx.beginPath(); fx.arc(0,0,r,0,Math.PI*2); fx.stroke(); fx.restore(); }
+  function drawGameFx(now){
+    const dt=Math.min(0.05,(now-lastGaugeT)/1000); lastGaugeT=now;
+    if(gameMode==="speed"){ const fever=now<feverUntil; if(!fever) gauge=Math.max(0, gauge - dt*0.42);
+      const gf=el("gaugeFill"); if(gf) gf.style.width=Math.round(gauge*100)+"%";
+      const gw=el("gaugeWrap"); if(gw) gw.style.boxShadow = fever? "0 0 14px rgba(255,46,77,0.9)" : "none";
+      const gl=el("gaugeLabel"); if(gl) gl.textContent = fever? "🔥 FEVER 🔥" : (gauge>0.02? Math.round(gauge*100)+"%" : "");
+      if(fever){ fx.save(); fx.globalAlpha=0.10+0.06*Math.sin(now/60); fx.fillStyle="#FF2E4D"; fx.fillRect(0,0,CW(),CH()); fx.restore(); } }
+    if(gameMode==="timing" && faceFound){ const ph=(now%BEAT_MS)/BEAT_MS, off=Math.min(ph,1-ph);
+      const ring=(c,col)=>{ if(!c) return; const rr=cheekR_px*(1+2.0*off); fx.save(); fx.globalAlpha=0.92; fx.strokeStyle=col; fx.lineWidth=3; fx.beginPath(); fx.arc(c.x,c.y,rr,0,Math.PI*2); fx.stroke(); fx.globalAlpha=0.4; fx.setLineDash([4,6]); fx.beginPath(); fx.arc(c.x,c.y,cheekR_px,0,Math.PI*2); fx.stroke(); fx.setLineDash([]); fx.restore(); };
+      ring(cheekL,"#FF2E4D"); ring(cheekR,"#FFD23F");
+      const beatIdx=Math.floor(now/BEAT_MS), countN=(beatIdx%4)+1, flash=Math.max(0,1-off/0.18);
+      if(beatIdx!==lastBeatIdx){ lastBeatIdx=beatIdx; if(audioCtx) playTick(); }
+      const cxm=CW()/2, ym=CH()*0.12;
+      for(let k=0;k<4;k++){ const on=(k===(beatIdx%4)); fx.save(); fx.globalAlpha=on?1:0.32; fx.fillStyle=on?"#FFD23F":"#6b6480"; fx.beginPath(); fx.arc(cxm-54+k*36, ym, on?7:5,0,Math.PI*2); fx.fill(); fx.restore(); }
+      fx.save(); fx.globalAlpha=0.22+0.6*flash; fx.strokeStyle="#FF2E4D"; fx.lineWidth=3+5*flash; fx.beginPath(); fx.arc(cxm, ym+42, 24+16*(1-flash),0,Math.PI*2); fx.stroke();
+      fx.globalAlpha=0.9; fx.fillStyle="#fff"; fx.font='800 26px "Black Han Sans",sans-serif'; fx.textAlign="center"; fx.textBaseline="middle"; fx.fillText(String(countN), cxm, ym+42); fx.restore();
+      if(off<0.08){ fx.save(); fx.globalAlpha=flash; fx.fillStyle="#FFD23F"; fx.font='800 20px "Black Han Sans",sans-serif'; fx.textAlign="center"; fx.fillText("지금!", cxm, ym+80); fx.restore(); }
+    }
+    if(lastJudge){ const e=(now-lastJudge.born)/650; if(e>=1){ lastJudge=null; } else { const a=1-e, yy=CH()*0.42-30*e; fx.save(); fx.globalAlpha=a; fx.translate(CW()/2,yy); const scj=1+e*0.5; fx.scale(scj,scj); fx.font='800 30px "Black Han Sans",sans-serif'; fx.textAlign="center"; fx.textBaseline="middle"; fx.lineWidth=5; fx.strokeStyle="rgba(0,0,0,.6)"; fx.strokeText(lastJudge.text,0,0); fx.fillStyle=lastJudge.color; fx.fillText(lastJudge.text,0,0); fx.restore(); } }
+  }
 
   /* ─────────── 타임어택 ─────────── */
   function startRun(){ if(!faceFound){ setStatus("fail","먼저 캐릭터·사진·카메라로 얼굴을 준비하세요"); return; }
@@ -1180,6 +1596,12 @@
     return o>1? applyExifRotation(img,o) : img;
   }
   function bakePhotoCaricature(){
+    const PWl=900, PHl=Math.round(PWl*1.3);
+    if(photoLineArt){ WW=PWl; WH=PHl; workCanvas.width=PWl; workCanvas.height=PHl;
+      workCtx.setTransform(1,0,0,1,0,0); workCtx.fillStyle=PAL.paper; workCtx.fillRect(0,0,PWl,PHl);
+      const map=composeLineArt(workCtx,PWl,PHl,photoLM,photoW,photoH,true);
+      const f=featurePts(photoLM,map); cheekFullL=f.L; cheekFullR=f.R; noseFull=f.nose; mouthFull=f.mouth;
+      faceBox={x0:0,y0:0,x1:PWl,y1:PHl}; { const yh=el("yawHint"); if(yh) yh.style.display = yawHintOn? "flex" : "none"; } return; }
     const P=caricatureEDFM(photoLM, ST());
     // 사진 픽셀 좌표 기준 얼굴 bbox
     let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for(const i of ovalIdx){ const x=P[i].x*photoW, y=P[i].y*photoH; x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y); }
@@ -1189,21 +1611,21 @@
     const scale=(PW*headFrac)/fwpx; const headCx=PW/2, headCy=PH*0.40;
     const mapF=pn=>({x:headCx+(pn.x*photoW-fcx)*scale, y:headCy+(pn.y*photoH-fcy)*scale});
     WW=PW; WH=PH; workCanvas.width=PW; workCanvas.height=PH;
-    drawCaricature(workCtx,P,PW,PH,mapF,styledST(),false,{hair:hairLayer});
+    drawCaricature(workCtx,P,PW,PH,mapF,styledST(),false,{hair:hairLayer, hairPoly:photoHairPoly});
     const f=featurePts(P,mapF); cheekFullL=f.L; cheekFullR=f.R; noseFull=f.nose; mouthFull=f.mouth;
     faceBox={x0:0,y0:0,x1:PW,y1:PH};
   }
   function fitPortrait(){ pview.A=WW/WH; setDispForAspect(pview.A); pview.cx=WW/2; pview.cy=WH/2; pview.hh=WH/2; pview.hhMin=Math.max(20,WH*0.18); pview.hhMax=WH/2; setSize(pview.dispW,pview.dispH); setStageAspect(pview.A); applyPhotoView(); }
   async function handleFile(file){
     if(!file||!file.type.startsWith("image/")){ setStatus("fail","이미지 파일만 가능"); return; }
-    setStatus("loading","분석 엔진 준비 중…"); dentL=dentR=0; ended=false; hairLayer=null; avgSkin=null; avgHair=null; photoGray=false; photoEarrings=null;
+    setStatus("loading","분석 엔진 준비 중…"); dentL=dentR=0; ended=false; hairLayer=null; avgSkin=null; avgHair=null; photoGray=false; photoEarrings=null; photoHairPoly=null; photoLineArt=null; lineSrc=null; lineMul=1; exagMul=1; try{el("lineRange").value=50; el("exagRange").value=50;}catch(_){}
     if(!(await ensureEngine()) || !faceLandmarker){ setStatus("fail","분석 엔진을 불러오지 못했습니다. 네트워크 확인 후 새로고침 해주세요."); return; }
     let src;
     try{ setStatus("loading","이미지 불러오는 중…"); src=await loadOriented(file); }
     catch(e){ console.warn(e); setStatus("fail","이미지를 열 수 없습니다. JPG/PNG 사진으로 다시 시도해 주세요(아이폰 HEIC는 '가장 호환성 높게' 설정 또는 캡처본 권장)."); return; }
     const iw=src.width||src.naturalWidth||0, ih=src.height||src.naturalHeight||0;
     if(!iw||!ih){ setStatus("fail","이미지 크기를 읽지 못했습니다. 다른 사진을 시도해 주세요."); return; }
-    const MAX=1024, sc=Math.min(1,MAX/Math.max(iw,ih)); WW=Math.max(1,Math.round(iw*sc)); WH=Math.max(1,Math.round(ih*sc)); photoW=WW; photoH=WH;
+    const MAX=1280, sc=Math.min(1,MAX/Math.max(iw,ih)); WW=Math.max(1,Math.round(iw*sc)); WH=Math.max(1,Math.round(ih*sc)); photoW=WW; photoH=WH;
     tmpCanvas.width=WW; tmpCanvas.height=WH; tmpCtx.clearRect(0,0,WW,WH); tmpCtx.drawImage(src,0,0,WW,WH);
     if(src.close) try{ src.close(); }catch(_){}
     el("dropzone").classList.remove("show"); setStatus("loading","얼굴 분석 중…");
@@ -1218,17 +1640,18 @@
         if(col.skin) avgSkin=toHex(col.skin); avgHair=toHex(hairRGB);
         // 귀걸이 인식(귀 아래 분리 블롭)
         try{ const lm=res.faceLandmarks[0]; if(lm[234]&&lm[454]){ const er=detectEarrings(arr, mw, mh, [{x:lm[234].x,y:lm[234].y},{x:lm[454].x,y:lm[454].y}]); photoEarrings={e234:er[0], e454:er[1]}; } }catch(_){}
-        if(col.hairN > mw*mh*0.012){ hairLayer=buildHairLayer(arr, mw, mh, hairRGB); }
-      }catch(se){ console.warn("seg 처리 실패", se); hairLayer=null; }
+        if(col.hairN > mw*mh*0.012){ photoHairPoly=buildHairPoly(arr, mw, mh); if(!photoHairPoly) hairLayer=buildHairLayer(arr, mw, mh, hairRGB); }
+      }catch(se){ console.warn("seg 처리 실패", se); hairLayer=null; photoHairPoly=null; }
     }
+    if(res && res.faceLandmarks && res.faceLandmarks.length){ try{ const ih=hexToRGB(avgHair||PAL.hair); const inkRGB=[Math.min(74,Math.round(ih[0]*0.38+16)),Math.min(70,Math.round(ih[1]*0.38+14)),Math.min(78,Math.round(ih[2]*0.38+20))]; photoLineArt=generateLineArt(tmpCanvas, inkRGB, res.faceLandmarks[0], WW, WH); }catch(le){ console.warn("lineart 실패", le); photoLineArt=null; } }
     tmpCtx.clearRect(0,0,WW,WH);
     if(!res||!res.faceLandmarks||!res.faceLandmarks.length){
       faceFound=false; photoLM=null; cheekFullL=cheekFullR=noseFull=mouthFull=null;
       workCanvas.width=WW; workCanvas.height=WH; workCtx.fillStyle=PAL.paper; workCtx.fillRect(0,0,WW,WH); pview.A=WW/WH; setDispForAspect(pview.A); pview.cx=WW/2; pview.cy=WH/2; pview.hh=WH/2; pview.hhMin=20; pview.hhMax=WH/2; setSize(pview.dispW,pview.dispH); setStageAspect(pview.A); applyPhotoView();
       el("photoCtl").classList.add("show"); setStatus("fail","얼굴을 찾지 못했어요. 얼굴이 크게·정면으로 나온 밝은 사진을 써보세요."); return;
     }
-    photoLM=res.faceLandmarks[0]; faceFound=true; bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show");
-    setStatus("ok","캐리커쳐 생성 완료 — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show");
+    photoLM=res.faceLandmarks[0]; faceFound=true; bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
+    setStatus("ok","캐리커쳐 생성 완료 — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show"); updateLineCtl();
   }
   function setDispForAspect(A){ if(A>=1){ pview.dispW=720; pview.dispH=Math.round(720/A); } else { pview.dispH=720; pview.dispW=Math.round(720*A); } }
   function fitFace(){ const fw=faceBox.x1-faceBox.x0, fh=faceBox.y1-faceBox.y0, m=0.55*Math.max(fw,fh);
@@ -1248,14 +1671,18 @@
   function zoomBy(f){ if(WW===0) return; pview.hh/=f; applyPhotoView(); }
 
   /* ─────────── 모드 ─────────── */
-  function clearPlay(){ effects.length=0; warps.length=0; combo=0; dentL=dentR=0; ended=false; el("comboNum").textContent="0"; el("endOverlay").classList.remove("show"); el("comboBadge").classList.remove("show"); el("tapHint").classList.remove("show"); }
+  function clearPlay(){ effects.length=0; warps.length=0; combo=0; dentL=dentR=0; ended=false; gauge=0; feverUntil=0; hitPulse=0; lastJudge=null; perfectStreak=0; speedFeverRun=0; tPerfect=0; tGood=0; tMiss=0; lastBeatIdx=-1; const gf=el("gaugeFill"); if(gf) gf.style.width="0%"; const gl=el("gaugeLabel"); if(gl) gl.textContent=""; glCanvas.style.transform="none"; fxCanvas.style.transform="none"; el("comboNum").textContent="0"; el("endOverlay").classList.remove("show"); el("comboBadge").classList.remove("show"); el("tapHint").classList.remove("show"); }
   function switchMode(m){ if(m===mode) return; cancelRun(); mode=m; hairLayer=null; avgSkin=null; avgHair=null; hairLive=null;
     el("mWebcam").classList.toggle("active",m==="webcam"); el("mPhoto").classList.toggle("active",m==="photo");
     if(cam.srcObject){ cam.srcObject.getTracks().forEach(t=>t.stop()); cam.srcObject=null; }
     clearPlay(); faceFound=false; cheekL=cheekR=noseP=mouthP=null; el("camMsg").style.display="none"; el("resultOverlay").classList.remove("show");
     el("startOverlay").classList.toggle("show",m==="webcam"); el("dropzone").classList.toggle("show",m==="photo"); el("photoCtl").classList.remove("show");
     WW=0; photoLM=null; liveLM=null; setSize(600,450); setStageAspect(4/3); if(gl) gl.clear(gl.COLOR_BUFFER_BIT); fx.clearRect(0,0,600,450); setStatus("ok", m==="webcam"?"카메라를 켜세요":"사진을 올리세요");
+    updateLineCtl();
   }
+  function updateLineCtl(){ const show = (mode==="photo" && photoLM && lineSrc); const colorOn=!!(STYLES[style]&&STYLES[style].color); el("lineCtl").classList.toggle("show", !!show && !colorOn); el("exagCtl").classList.toggle("show", !!show); }
+  function rebuildLineArt(){ if(!lineSrc) return; const thr=Math.max(3, lineSrc.baseThr*lineMul); photoLineArt=renderLineFromSrc(thr); if(photoLM){ bakePhotoCaricature(); fitPortrait(); } }
+  function rebakePhoto(){ if(photoLM){ bakePhotoCaricature(); fitPortrait(); } }
 
   /* ─────────── 저장 ─────────── */
   const Store=(()=>{ const mem={}; const ws=(typeof window!=="undefined"&&window.storage&&typeof window.storage.get==="function")?window.storage:null;
@@ -1278,7 +1705,7 @@
   function weekAgo(){ return Date.now()-7*24*3600*1000; }
   let stats={}, saveTimer=null;
   const todayKey=()=>{ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
-  async function loadAll(){ stats=(await Store.get(STAT_KEY))||{}; records=(await Store.get(REC_KEY))||{}; el("mToday").textContent=stats[todayKey()]||0; el("taBest").textContent=records[selectedDur]||0; }
+  async function loadAll(){ stats=(await Store.get(STAT_KEY))||{}; records=(await Store.get(REC_KEY))||{}; gameRecords=(await Store.get(GAME_KEY))||{timingBestStreak:0, speedFeverBest:0}; el("mToday").textContent=stats[todayKey()]||0; el("taBest").textContent=records[selectedDur]||0; el("mTiming").textContent=gameRecords.timingBestStreak||0; el("mSpeed").textContent=gameRecords.speedFeverBest||0; }
   function bumpToday(){ const k=todayKey(); stats[k]=(stats[k]||0)+1; el("mToday").textContent=stats[k]; clearTimeout(saveTimer); saveTimer=setTimeout(()=>Store.set(STAT_KEY,stats),400); if(!el("statModal").classList.contains("hidden")) renderStats(); }
   function renderStats(){ const days=[]; const d=new Date();
     for(let i=13;i>=0;i--){ const dd=new Date(d); dd.setDate(d.getDate()-i); const key=`${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,"0")}-${String(dd.getDate()).padStart(2,"0")}`; days.push({key,label:`${dd.getMonth()+1}/${dd.getDate()}`,val:stats[key]||0}); }
@@ -1314,7 +1741,9 @@
   /* ─────────── 기타 이벤트 ─────────── */
   el("consentOk").addEventListener("click",()=>el("consent").classList.add("hidden"));
   el("styleChips").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; style=b.dataset.s; [...el("styleChips").children].forEach(x=>x.classList.toggle("on",x===b));
-    if(mode==="photo" && photoLM){ bakePhotoCaricature(); fitPortrait(); } });
+    if(mode==="photo" && photoLM){ bakePhotoCaricature(); fitPortrait(); } updateLineCtl(); });
+  el("lineRange").addEventListener("input",e=>{ const den=+e.target.value; lineMul=1.6-0.012*den; rebuildLineArt(); });
+  el("exagRange").addEventListener("input",e=>{ const v=+e.target.value; exagMul=v/50; rebakePhoto(); });
   el("exportBtn").addEventListener("click",()=>{ if(mode==="photo"?!photoLM:!liveLM){ setStatus("fail","먼저 사진을 올리거나 카메라로 얼굴을 잡아주세요"); return; } el("exportModal").classList.remove("hidden"); });
   el("bgChips").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; exportBg=b.dataset.bg; [...el("bgChips").children].forEach(x=>x.classList.toggle("on",x===b)); });
   el("verChips").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; exportVer=b.dataset.ver; [...el("verChips").children].forEach(x=>x.classList.toggle("on",x===b)); });
@@ -1322,6 +1751,7 @@
   el("exportFree").addEventListener("click",()=>exportPNG({size:1024, bg:exportBg, ver:exportVer, watermark:true}));
   el("exportPro").addEventListener("click",()=>exportPNG({size:2048, bg:exportBg, ver:exportVer, watermark:false}));
   el("exportScore").addEventListener("click",exportScorecard);
+  el("exportSketch").addEventListener("click",exportSketchPNG);
   el("exportClose").addEventListener("click",()=>el("exportModal").classList.add("hidden"));
   el("startBtn").addEventListener("click",startWebcam);
   el("toPhotoBtn").addEventListener("click",()=>switchMode("photo"));
@@ -1340,6 +1770,10 @@
   el("zoomOut").addEventListener("click",()=>zoomBy(1/1.2));
   el("zoomFit").addEventListener("click",()=>{ if(photoLM) fitPortrait(); else if(faceBox){ pview.cx=WW/2; pview.cy=WH/2; pview.hh=WH/2; applyPhotoView(); } });
   el("handChips").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; hand=b.dataset.h; [...el("handChips").children].forEach(x=>x.classList.toggle("on",x===b)); });
+  function setGameMode(g){ gameMode=g; [...el("gameChips").children].forEach(x=>x.classList.toggle("on",x.dataset.g===g)); gauge=0; feverUntil=0; lastJudge=null; perfectStreak=0; speedFeverRun=0; tPerfect=0; tGood=0; tMiss=0; const gw=el("gaugeWrap"); if(gw) gw.style.display = g==="speed"? "block":"none"; const gl=el("gaugeLabel"); if(gl) gl.textContent=""; setStatus("ok", g==="timing"?"정밀단속 — 링이 볼에 맞는 순간 때려요!": g==="speed"?"긴급출동 — 빠르게 때려 게이지를 채워요!":"자율순찰 — 자유롭게 참교육"); }
+  el("gameChips").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; setGameMode(b.dataset.g); });
+  function showModePicker(){ const mp=el("modePicker"); if(!mp) return; const f=el("pickFree"); if(f) f.textContent="최고 콤보 "+(best||0); const t=el("pickTiming"); if(t) t.textContent="최고 연속 "+(gameRecords.timingBestStreak||0); const sp=el("pickSpeed"); if(sp) sp.textContent="FEVER 최고 "+(gameRecords.speedFeverBest||0); mp.style.display="flex"; }
+  el("modePicker").addEventListener("click",e=>{ const b=e.target.closest("button[data-pg]"); if(b) setGameMode(b.dataset.pg); el("modePicker").style.display="none"; });
   el("durChips").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; selectedDur=+b.dataset.d; [...el("durChips").children].forEach(x=>x.classList.toggle("on",x===b)); el("taBest").textContent=records[selectedDur]||0; });
   el("taStart").addEventListener("click",startRun);
   el("resRetry").addEventListener("click",startRun);
