@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v7</div>
+    <div class="step-badge">참교육 v8</div>
   </header>
 
   <div class="toolbar">
@@ -1640,7 +1640,8 @@
     const hasFace=(r)=>!!(r&&r.faceLandmarks&&r.faceLandmarks.length);
     // 이마(10)→턱(152)이 아래로 향할수록 '똑바로 선' 얼굴 → 옆으로 누운 사진도 정방향으로 교정
     const upScore=(lm)=>{ if(!lm||!lm[10]||!lm[152]||!lm[33]||!lm[263]) return -9;
-      const vspan=lm[152].y-lm[10].y, eyeTilt=Math.abs(lm[263].y-lm[33].y); return vspan - eyeTilt*1.2; };
+      const vspan=lm[152].y-lm[10].y, eyeDX=Math.abs(lm[33].x-lm[263].x), eyeDY=Math.abs(lm[33].y-lm[263].y);
+      return vspan + (eyeDX-eyeDY)*1.4; }; // 눈이 수평(정방향)=가산, 위아래로 섬(옆으로 누움)=감점 → 저화질·작은 사진에 강함
     let detRot=0;
     try{ await ensureMode("IMAGE");
       // 정방향(0°)을 우선 검출 — 충분히 똑바르면 그대로 사용
