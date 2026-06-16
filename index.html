@@ -1628,13 +1628,17 @@
     const MAX=1280, sc=Math.min(1,MAX/Math.max(iw,ih)); const bw=Math.max(1,Math.round(iw*sc)), bh=Math.max(1,Math.round(ih*sc));
     el("dropzone").classList.remove("show"); setStatus("loading","얼굴 분석 중…");
     let res=null;
-    // 모바일에서 EXIF 회전이 보정되지 않아 사진이 옆으로 들어오는 경우를 대비: 정방향→90→270→180 순으로 얼굴을 찾을 때까지 회전 재시도
+    // 회전 후보를 캔버스에 그림(90/270은 가로세로 스왑)
     const drawRot=(deg)=>{ const swap=(deg===90||deg===270); const cw=swap?bh:bw, ch=swap?bw:bh; tmpCanvas.width=cw; tmpCanvas.height=ch; tmpCtx.setTransform(1,0,0,1,0,0); tmpCtx.clearRect(0,0,cw,ch); tmpCtx.save(); tmpCtx.translate(cw/2,ch/2); tmpCtx.rotate(deg*Math.PI/180); tmpCtx.drawImage(src,-bw/2,-bh/2,bw,bh); tmpCtx.restore(); };
     const hasFace=(r)=>!!(r&&r.faceLandmarks&&r.faceLandmarks.length);
+    // 이마(10)→턱(152)이 아래로 향할수록 '똑바로 선' 얼굴 → 옆으로 누운 사진도 정방향으로 교정
+    const upScore=(lm)=> (lm&&lm[152]&&lm[10])? (lm[152].y - lm[10].y) : -9;
     try{ await ensureMode("IMAGE");
-      drawRot(0); res=faceLandmarker.detect(tmpCanvas);
-      if(!hasFace(res)){ for(const deg of [90,270,180]){ drawRot(deg); const r2=faceLandmarker.detect(tmpCanvas); if(hasFace(r2)){ res=r2; break; } } }
-      if(!hasFace(res)) drawRot(0); // 못 찾으면 정방향으로 되돌림
+      // 0→90→270→180 중 '가장 똑바로 선' 방향을 선택(모바일 EXIF 미보정·회전 사진 대응)
+      let best=null;
+      for(const deg of [0,90,270,180]){ drawRot(deg); const r=faceLandmarker.detect(tmpCanvas);
+        if(hasFace(r)){ const up=upScore(r.faceLandmarks[0]); if(!best || up>best.up) best={deg, r, up}; if(up>0.22) break; } }
+      if(best){ drawRot(best.deg); res=best.r; } else { drawRot(0); res=null; }
     }
     catch(e){ console.warn("detect 실패", e); setStatus("fail","얼굴 분석에 실패했습니다. 새로고침 후 다시 시도해 주세요."); try{ tmpCtx.setTransform(1,0,0,1,0,0); tmpCtx.clearRect(0,0,tmpCanvas.width,tmpCanvas.height); }catch(_){} return; }
     WW=tmpCanvas.width; WH=tmpCanvas.height; photoW=WW; photoH=WH;
