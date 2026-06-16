@@ -1198,7 +1198,7 @@
   let engineReady=false, enginePromise=null;
   async function initEngine(){ try{
     const r=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm");
-    const mkFace=(delegate)=>FaceLandmarker.createFromOptions(r,{ baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", delegate }, runningMode:"VIDEO", numFaces:1 });
+    const mkFace=(delegate)=>FaceLandmarker.createFromOptions(r,{ baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", delegate }, runningMode:"VIDEO", numFaces:1, minFaceDetectionConfidence:0.3, minFacePresenceConfidence:0.3, minTrackingConfidence:0.3 });
     try{ faceLandmarker=await mkFace("GPU"); }
     catch(ge){ console.warn("FaceLandmarker GPU 실패 → CPU 재시도", ge); faceLandmarker=await mkFace("CPU"); }
     runningMode="VIDEO"; engineReady=true;
@@ -1625,13 +1625,20 @@
     catch(e){ console.warn(e); setStatus("fail","이미지를 열 수 없습니다. JPG/PNG 사진으로 다시 시도해 주세요(아이폰 HEIC는 '가장 호환성 높게' 설정 또는 캡처본 권장)."); return; }
     const iw=src.width||src.naturalWidth||0, ih=src.height||src.naturalHeight||0;
     if(!iw||!ih){ setStatus("fail","이미지 크기를 읽지 못했습니다. 다른 사진을 시도해 주세요."); return; }
-    const MAX=1280, sc=Math.min(1,MAX/Math.max(iw,ih)); WW=Math.max(1,Math.round(iw*sc)); WH=Math.max(1,Math.round(ih*sc)); photoW=WW; photoH=WH;
-    tmpCanvas.width=WW; tmpCanvas.height=WH; tmpCtx.clearRect(0,0,WW,WH); tmpCtx.drawImage(src,0,0,WW,WH);
-    if(src.close) try{ src.close(); }catch(_){}
+    const MAX=1280, sc=Math.min(1,MAX/Math.max(iw,ih)); const bw=Math.max(1,Math.round(iw*sc)), bh=Math.max(1,Math.round(ih*sc));
     el("dropzone").classList.remove("show"); setStatus("loading","얼굴 분석 중…");
     let res=null;
-    try{ await ensureMode("IMAGE"); res=faceLandmarker.detect(tmpCanvas); }
-    catch(e){ console.warn("detect 실패", e); setStatus("fail","얼굴 분석에 실패했습니다. 새로고침 후 다시 시도해 주세요."); tmpCtx.clearRect(0,0,WW,WH); return; }
+    // 모바일에서 EXIF 회전이 보정되지 않아 사진이 옆으로 들어오는 경우를 대비: 정방향→90→270→180 순으로 얼굴을 찾을 때까지 회전 재시도
+    const drawRot=(deg)=>{ const swap=(deg===90||deg===270); const cw=swap?bh:bw, ch=swap?bw:bh; tmpCanvas.width=cw; tmpCanvas.height=ch; tmpCtx.setTransform(1,0,0,1,0,0); tmpCtx.clearRect(0,0,cw,ch); tmpCtx.save(); tmpCtx.translate(cw/2,ch/2); tmpCtx.rotate(deg*Math.PI/180); tmpCtx.drawImage(src,-bw/2,-bh/2,bw,bh); tmpCtx.restore(); };
+    const hasFace=(r)=>!!(r&&r.faceLandmarks&&r.faceLandmarks.length);
+    try{ await ensureMode("IMAGE");
+      drawRot(0); res=faceLandmarker.detect(tmpCanvas);
+      if(!hasFace(res)){ for(const deg of [90,270,180]){ drawRot(deg); const r2=faceLandmarker.detect(tmpCanvas); if(hasFace(r2)){ res=r2; break; } } }
+      if(!hasFace(res)) drawRot(0); // 못 찾으면 정방향으로 되돌림
+    }
+    catch(e){ console.warn("detect 실패", e); setStatus("fail","얼굴 분석에 실패했습니다. 새로고침 후 다시 시도해 주세요."); try{ tmpCtx.setTransform(1,0,0,1,0,0); tmpCtx.clearRect(0,0,tmpCanvas.width,tmpCanvas.height); }catch(_){} return; }
+    WW=tmpCanvas.width; WH=tmpCanvas.height; photoW=WW; photoH=WH;
+    if(src.close) try{ src.close(); }catch(_){}
     // 머리카락 분할 + 평균색(픽셀 폐기 전)
     if(segmenter && res && res.faceLandmarks && res.faceLandmarks.length){
       try{ setStatus("loading","머리카락 분석 중…"); await ensureSegMode("IMAGE"); const seg=segmenter.segment(tmpCanvas); const m=seg.categoryMask; const mw=m.width, mh=m.height; const arr=m.getAsUint8Array(); m.close&&m.close(); seg.close&&seg.close();
