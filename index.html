@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v19</div>
+    <div class="step-badge">참교육 v21</div>
   </header>
 
   <div class="toolbar">
@@ -375,13 +375,13 @@
   // 3가지 캐리커쳐 스타일 (퍼센트 대신 선택) — 팔레트·부스트·바디 비율 포함
   const STYLES={
     flat:    { label:"봉근대",     ex:0.45, eyeScale:1.08, faceRound:0.16, noseBoost:1.0,  jawBoost:1.0,  browW:2.4, lineW:1.0,  shade:0.6,  lash:false, iris:0.66, hi:0.9,
-               bodyDrop:0.34, shoulderW:1.18, neckW:0.36, shirt:"#5C7CB8", shirtSh:"#43608F", hair:"#3B2F28", skin:"#F3CAA2", color:true, exag:1.0, blush:0.42, eyeEnl:1.18, browMul:1.0, upMul:1.0, dnMul:1.0, shirtLW:1.0, collar:"round", coreLine:1.06, earK:1.0, neckLen:0.34, eyeAspect:1.0, eyeTilt:0.05 },
+               bodyDrop:0.34, shoulderW:1.18, neckW:0.36, shirt:"#5C7CB8", shirtSh:"#43608F", hair:"#3B2F28", skin:"#F3CAA2", color:true, exag:1.0, blush:0.42, eyeEnl:1.18, browMul:1.0, upMul:1.0, dnMul:1.0, shirtLW:1.0, collar:"round", coreLine:1.06, earK:1.0, neckLen:0.34, eyeAspect:1.0, eyeTilt:0.05, nostril:0.5 },
     cartoon: { label:"임한림",     ex:0.26, eyeScale:1.95, faceRound:0.48, noseBoost:0.80, jawBoost:1.0,  browW:2.0, lineW:1.05, shade:0.78, lash:true,  iris:0.82, hi:1.1,
-               bodyDrop:0.36, shoulderW:1.12, neckW:0.34, shirt:"#F2A65A", shirtSh:"#D7853B", hair:"#4A3327", skin:"#FAD2AE", color:true, exag:1.42, blush:0.62, eyeEnl:1.55, browMul:0.95, upMul:1.2, dnMul:1.1, shirtLW:1.2, collar:"v", coreLine:1.0, earK:1.16, neckLen:0.18, eyeAspect:1.24, eyeTilt:0.0, browTilt:0.22 },
+               bodyDrop:0.36, shoulderW:1.12, neckW:0.34, shirt:"#F2A65A", shirtSh:"#D7853B", hair:"#4A3327", skin:"#FAD2AE", color:true, exag:1.42, blush:0.62, eyeEnl:1.55, browMul:0.95, upMul:1.2, dnMul:1.1, shirtLW:1.2, collar:"v", coreLine:1.0, earK:1.16, neckLen:0.18, eyeAspect:1.24, eyeTilt:0.0, browTilt:0.22, nostril:0.4 },
     trad:    { label:"나화진", ex:1.0,  eyeScale:0.98, faceRound:0.0,  noseBoost:1.5,  jawBoost:1.4, browW:3.4, lineW:1.4,  shade:0.62, lash:false, iris:0.6,  hi:0.85,
-               bodyDrop:0.20, shoulderW:0.86, neckW:0.30, shirt:"#C0504D", shirtSh:"#9A3D3A", hair:"#322620", skin:"#EEC199", bigHead:true, color:true, exag:1.6, blush:0.4, eyeEnl:1.1, browMul:1.4, upMul:2.4, dnMul:1.6, shirtLW:1.8, collar:"han", coreLine:1.2, earK:0.92, neckLen:0.55, eyeAspect:0.60, eyeTilt:0.6, browTilt:0.62, eyeInnerDrop:0.5 },
+               bodyDrop:0.20, shoulderW:0.86, neckW:0.30, shirt:"#C0504D", shirtSh:"#9A3D3A", hair:"#322620", skin:"#EEC199", bigHead:true, color:true, exag:1.6, blush:0.4, eyeEnl:1.1, browMul:1.4, upMul:2.4, dnMul:1.6, shirtLW:1.8, collar:"han", coreLine:1.2, earK:0.92, neckLen:0.55, eyeAspect:0.60, eyeTilt:0.6, browTilt:0.62, eyeInnerDrop:0.5, nostril:1.0 },
     line:    { label:"선화",     ex:0.0,  eyeScale:1.0,  faceRound:0.0,  noseBoost:1.0,  jawBoost:1.0,  browW:2.0, lineW:1.0,  shade:0.6,  lash:false, iris:0.66, hi:0.9,
-               bodyDrop:0.34, shoulderW:1.18, neckW:0.36, shirt:"#5C7CB8", shirtSh:"#43608F", hair:"#3B2F28", skin:"#F3CAA2", color:false, exag:1.0, blush:0, eyeEnl:1.18, browMul:1.0, upMul:1.0, dnMul:1.0 }
+               bodyDrop:0.34, shoulderW:1.18, neckW:0.36, shirt:"#5C7CB8", shirtSh:"#43608F", hair:"#3B2F28", skin:"#F3CAA2", color:false, exag:1.0, blush:0, eyeEnl:1.18, browMul:1.0, upMul:1.0, dnMul:1.0, nostril:0.6 }
   };
   let style="flat", photoLineArt=null, lineSrc=null, lineMul=1, paperNoise=null, exagMul=1, sketchMode=false;
   const ST=()=>STYLES[style];
@@ -1064,6 +1064,8 @@
       const g=ctx.createRadialGradient(c.x,c.y,1,c.x,c.y,R); g.addColorStop(0,col0); g.addColorStop(1,"rgba(240,140,140,0)"); ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(c.x,c.y,R,fH*(st.gray?0.078:0.06),0,0,Math.PI*2); ctx.fill(); };
     blush(CHEEK_A); blush(CHEEK_B);
 
+    // 광대·턱선 입체 음영(은은하게)
+    try{ drawFaceShade(ctx,P,map,fW,fH,st,skinSh); }catch(_){}
     // ===== 5) 눈썹 (부드러운 테이퍼 셰이프) =====
     const brow=(idxs)=>{ const all=idxs.filter(i=>P[i]).map(i=>map(P[i])); if(all.length<2) return;
       const s=[...all].sort((a,b)=>a.x-b.x);
@@ -1145,18 +1147,35 @@
     ctx.restore();
     const tipCy=nTip.y+fH*0.006 - upturn*nLen*0.08;
     const tipRX=nW*(0.34+0.12*wide+0.18*exK*Math.max(0,wide-1)); const tipRY=Math.max(fH*0.016, nLen*0.16*(0.9+0.3*long));
+    // 코끝 그림자 + 하이라이트(입체)
     ctx.save();
-    ctx.globalAlpha=0.42*st.shade; ctx.fillStyle=skinSh; ctx.beginPath(); ctx.ellipse(nTip.x, tipCy, tipRX, tipRY,0,0,Math.PI*2); ctx.fill();
-    if(wide>1.12){ ctx.globalAlpha=0.28*st.shade; for(const q of [nL,nR]){ ctx.beginPath(); ctx.ellipse(q.x+(q===nL?1:-1)*nW*0.06, q.y-nW*0.02, nW*0.16*(wide-0.5), nW*0.13*(wide-0.5),0,0,Math.PI*2); ctx.fill(); } }
+    ctx.globalAlpha=0.5*st.shade; ctx.fillStyle=skinSh; ctx.beginPath(); ctx.ellipse(nTip.x, tipCy, tipRX, tipRY,0,0,Math.PI*2); ctx.fill();
+    if(wide>1.12){ ctx.globalAlpha=0.34*st.shade; for(const q of [nL,nR]){ ctx.beginPath(); ctx.ellipse(q.x+(q===nL?1:-1)*nW*0.06, q.y-nW*0.02, nW*0.17*(wide-0.5), nW*0.14*(wide-0.5),0,0,Math.PI*2); ctx.fill(); } }
     ctx.globalAlpha=0.5*st.shade; ctx.fillStyle=skinHi; ctx.beginPath(); ctx.ellipse(nTip.x-tipRX*0.3, tipCy-tipRY*0.35, tipRX*0.42, tipRY*0.42,0,0,Math.PI*2); ctx.fill();
     ctx.restore();
-    ctx.strokeStyle=skinSh2; ctx.lineCap="round"; ctx.lineWidth=lw*(0.85+0.35*wide);
-    ctx.beginPath(); ctx.moveTo(nTip.x-tipRX*0.5, tipCy); ctx.quadraticCurveTo(nL.x+nW*0.05, nL.y-nLen*0.10, nL.x, nL.y); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(nTip.x+tipRX*0.5, tipCy); ctx.quadraticCurveTo(nR.x-nW*0.05, nR.y-nLen*0.10, nR.x, nR.y); ctx.stroke();
-    ctx.lineWidth=lw*0.85; ctx.beginPath(); ctx.moveTo(nL.x,nL.y); ctx.quadraticCurveTo(n2.x,n2.y+fH*0.012*long,nR.x,nR.y); ctx.stroke();
-    const noR=nW*(0.075+0.05*Math.max(0,upturn)); const noFlat=upturn>0.15?0.85:0.66;
-    ctx.fillStyle=skinSh2; ctx.globalAlpha=Math.min(1,0.8+0.2*Math.max(0,upturn));
-    for(const q of [nL,nR]){ ctx.beginPath(); ctx.ellipse(q.x,q.y+fH*0.002,noR,noR*noFlat,0,0,Math.PI*2); ctx.fill(); }
+    // 콧밑 그림자(밑면) — 코를 입체로 보이게
+    ctx.save(); ctx.globalAlpha=0.32*st.shade; ctx.fillStyle=shade(skinSh,-0.28);
+    ctx.beginPath(); ctx.moveTo(nL.x,nL.y); ctx.quadraticCurveTo(nTip.x, tipCy+tipRY*0.95, nR.x,nR.y);
+    ctx.quadraticCurveTo(nTip.x, Math.max(nL.y,nR.y)+nLen*0.06, nL.x,nL.y); ctx.closePath(); ctx.fill(); ctx.restore();
+    // 콧방울 날개 곡선(또렷)
+    ctx.save(); ctx.strokeStyle=shade(skinSh2,-0.18); ctx.lineCap="round"; ctx.globalAlpha=0.9; ctx.lineWidth=lw*(1.0+0.4*wide);
+    ctx.beginPath(); ctx.moveTo(nTip.x-tipRX*0.55, tipCy-tipRY*0.1); ctx.quadraticCurveTo(nL.x+nW*0.04, nL.y-nLen*0.10, nL.x, nL.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(nTip.x+tipRX*0.55, tipCy-tipRY*0.1); ctx.quadraticCurveTo(nR.x-nW*0.04, nR.y-nLen*0.10, nR.x, nR.y); ctx.stroke();
+    ctx.restore();
+    // ▼ 콧구멍 — 스타일별 진하기 + 들창 반영, 과장에도 상한
+    const nostrilK=(st.nostril!=null? st.nostril : 0.6);
+    const nostrilCol=shade(skinSh2,-(0.32+0.38*nostrilK));
+    const upC=Math.max(0,Math.min(1,upturn));
+    const noR=nW*Math.min(0.17, 0.085+0.05*upC); const noFlat=upturn>0.12?0.92:0.6;   // 과장에도 상한(0.17*폭)
+    const nlx=nTip.x+(nL.x-nTip.x)*0.52, nrx=nTip.x+(nR.x-nTip.x)*0.52;
+    const noY=tipCy+tipRY*(0.6-0.25*upC);
+    ctx.save();
+    ctx.fillStyle=nostrilCol; ctx.globalAlpha=Math.min(1,(0.55+0.3*upC)*(0.6+0.55*nostrilK));
+    ctx.beginPath(); ctx.ellipse(nlx,noY,noR,noR*noFlat, 0.34,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(nrx,noY,noR,noR*noFlat,-0.34,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=Math.min(1,0.4*st.shade*(0.6+0.6*nostrilK)); ctx.strokeStyle=nostrilCol; ctx.lineWidth=lw*0.7; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(nTip.x, tipCy+tipRY*0.25); ctx.lineTo(nTip.x, noY+noR*0.15); ctx.stroke();
+    ctx.restore();
     ctx.globalAlpha=1;
 
     // ===== 8) 입 — 입술 두께 개인차 + 인중 =====
@@ -1259,6 +1278,16 @@
     const cand=[[m,must],[c,chin],[jl,jawL],[jr,jawR]].filter(x=>x[1]).sort((a,b)=>b[0]-a[0]);
     const rgb=cand.length? cand[0][1].rgb : [60,50,45];
     return {must:m, chin:c, jaw:(jl+jr)/2, rgb};
+  }
+  function drawFaceShade(ctx, P, map, fW, fH, st, skinSh){
+    const a=0.18*(st.shade||0.6);
+    ctx.save();
+    try{ ctx.filter="blur("+Math.max(1,fW*0.018)+"px)"; }catch(_){}
+    ctx.fillStyle=skinSh; ctx.globalAlpha=a;
+    for(const sp of [[50,234],[280,454]]){ const c=sp[0], sidei=sp[1]; if(!P[c]||!P[sidei]) continue; const cc=map(P[c]), sd=map(P[sidei]); const cx=cc.x*0.55+sd.x*0.45, cy=cc.y+fH*0.035; ctx.beginPath(); ctx.ellipse(cx,cy, fW*0.11, fH*0.07, (sidei===234?0.5:-0.5),0,Math.PI*2); ctx.fill(); }
+    const jawIdx=[132,172,136,150,149,176,148,152,377,400,378,379,365,397,361]; const jl=jawIdx.filter(i=>P[i]).map(i=>map(P[i]));
+    if(jl.length>4){ ctx.globalAlpha=a*0.8; ctx.lineWidth=fH*0.025; ctx.strokeStyle=skinSh; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.beginPath(); jl.forEach((q,k)=>k?ctx.lineTo(q.x,q.y-fH*0.008):ctx.moveTo(q.x,q.y-fH*0.008)); ctx.stroke(); }
+    ctx.restore();
   }
   function drawBeardOn(ctx, P, map, fW, fH, lw, beard){
     if(!beard) return; const col=beard.rgb||[55,45,40]; const rgba=(a)=>`rgba(${col[0]},${col[1]},${col[2]},${a})`;
