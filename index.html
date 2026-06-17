@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v32</div>
+    <div class="step-badge">참교육 v36</div>
   </header>
 
   <div class="toolbar">
@@ -354,7 +354,7 @@
 
   let faceLandmarker=null, runningMode=null, segmenter=null, segMode=null;
   let hairLayer=null, avgSkin=null, avgHair=null, photoGray=false, photoEarrings=null, photoHairPoly=null, __beard=null, __lipColor=null, __eyes=null, __brows=null;
-  let moodSad=0, __moodStep=-1, __photoP=null, __photoMapF=null;
+  let moodSad=0, __moodStep=-1, __photoP=null, __photoMapF=null, __glasses=null, __headwear=null;
   let gladUntil=0, __lastGladRender=0, __gladRevertT=null; const GLAD_DUR=750;
   const BRAGS=["흥!","훗!","어때!","약하군!","후훗","멋지지?"];
   let hairLive=null, segTick=0; const SEG_EVERY=4;
@@ -998,16 +998,28 @@
       const closedSmooth=(pp)=>{ const n=pp.length; if(n<3){ pp.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); return; }
         ctx.moveTo((pp[n-1].x+pp[0].x)/2,(pp[n-1].y+pp[0].y)/2);
         for(let i=0;i<n;i++){ const cur=pp[i], nxt=pp[(i+1)%n]; ctx.quadraticCurveTo(cur.x,cur.y,(cur.x+nxt.x)/2,(cur.y+nxt.y)/2); } ctx.closePath(); };
-      const hrgb=hexToRGB(hair); const hiC=shadeRGB(hrgb,0.30), shC=shadeRGB(hrgb,-0.42);
+      const hrgb=hexToRGB(hair); let hiC=shadeRGB(hrgb,0.30), midC=hrgb.slice(), shC=shadeRGB(hrgb,-0.42);
+      const _lum=(hrgb[0]+hrgb[1]+hrgb[2])/3, _sat=Math.max(hrgb[0],hrgb[1],hrgb[2])-Math.min(hrgb[0],hrgb[1],hrgb[2]);
+      const isWhiteHair=_lum>160 && _sat<46;
+      if(isWhiteHair){ hiC=[253,253,251]; midC=[223,225,229]; shC=[150,154,163]; } // 은발: 대비 살린 흰빛~서늘한 회색
       let yA=1e9,yB=-1e9; const mapped=polys.map(poly=>poly.map(map));
       for(const mp of mapped) for(const p of mp){ if(p.y<yA)yA=p.y; if(p.y>yB)yB=p.y; }
       const g=ctx.createLinearGradient(0,yA,0,yB);
-      g.addColorStop(0,`rgb(${hiC[0]},${hiC[1]},${hiC[2]})`); g.addColorStop(0.45,hair); g.addColorStop(1,`rgb(${shC[0]},${shC[1]},${shC[2]})`);
+      g.addColorStop(0,`rgb(${hiC[0]},${hiC[1]},${hiC[2]})`); g.addColorStop(0.45,`rgb(${midC[0]},${midC[1]},${midC[2]})`); g.addColorStop(1,`rgb(${shC[0]},${shC[1]},${shC[2]})`);
       for(const mp of mapped){
         ctx.fillStyle=g; ctx.beginPath(); closedSmooth(mp); ctx.fill();
         // 정수리 광택(살짝)
         ctx.save(); ctx.beginPath(); closedSmooth(mp); ctx.clip(); ctx.globalAlpha=0.35; ctx.fillStyle=`rgb(${hiC[0]},${hiC[1]},${hiC[2]})`;
         ctx.beginPath(); ctx.ellipse(C.x, yA+(yB-yA)*0.12, fW*0.4, fH*0.22,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+        // 머릿결 흐름 — 가르마(흐름 중심)에서 좌우로 흘러내림
+        ctx.save(); ctx.beginPath(); closedSmooth(mp); ctx.clip(); ctx.lineCap="round";
+        const _hy0=yA+(yB-yA)*0.05, _hyM=yA+(yB-yA)*0.5, _hyB=yA+(yB-yA)*0.98, _hyH=yA+(yB-yA)*0.82, _span=fW*0.55;
+        let _pxw=0,_pcn=0; const _topB=yA+(yB-yA)*0.20; for(const q of mp){ if(q.y<=_topB){ _pxw+=q.x; _pcn++; } } const partX=_pcn?_pxw/_pcn:C.x;
+        ctx.globalAlpha=isWhiteHair?0.24:0.13; ctx.strokeStyle=`rgb(${shC[0]},${shC[1]},${shC[2]})`; ctx.lineWidth=lw*0.55;
+        for(let i=-5;i<=5;i++){ const t=i/5; ctx.beginPath(); ctx.moveTo(partX+t*_span*0.16,_hy0); ctx.quadraticCurveTo(partX+t*_span*0.72,_hyM, partX+t*_span,_hyB); ctx.stroke(); }
+        ctx.globalAlpha=isWhiteHair?0.5:0.28; ctx.strokeStyle=`rgb(${hiC[0]},${hiC[1]},${hiC[2]})`; ctx.lineWidth=lw*0.5;
+        for(let i=-3;i<=3;i++){ const t=i/3; ctx.beginPath(); ctx.moveTo(partX+t*_span*0.12,_hy0); ctx.quadraticCurveTo(partX+t*_span*0.5,_hyM, partX+t*_span*0.85,_hyH); ctx.stroke(); }
+        ctx.restore();
         // 또렷한 외곽선
         ctx.strokeStyle=PAL.line; ctx.lineWidth=lw*1.1; ctx.beginPath(); closedSmooth(mp); ctx.stroke();
       }
@@ -1153,6 +1165,8 @@
         for(let i=0;i<3;i++){ const t=i/2; ctx.beginPath(); ctx.moveTo(outer.x-dx*ew*0.1*t, outer.y); ctx.lineTo(outer.x+dx*ew*(0.3+0.2*t), outer.y-eh*(0.5+0.3*t)); ctx.stroke(); } }
     };
     eye(eyeLIdx,"L"); eye(eyeRIdx,"R");
+    // 안경(사진 인식) — 뿔테/은테
+    try{ if(__glasses) drawGlasses(ctx, map(centroid(P,eyeLIdx)), map(centroid(P,eyeRIdx)), P, map, fW, fH, lw, __glasses); }catch(_){}
 
     // 6.5) 수염(사진에서 감지된 경우) — 코·입 선보다 먼저 깔기
     try{ drawBeardOn(ctx, P, map, fW, fH, lw, __beard); }catch(_){}
@@ -1232,19 +1246,39 @@
     ctx.restore();
     ctx.strokeStyle=shade(LIP,-0.4); ctx.lineWidth=lw*1.2; ctx.beginPath(); ctx.moveTo(lc1.x,lc1.y-sLift); ctx.quadraticCurveTo(lcm.x,lcm.y,lc2.x,lc2.y-sLift); ctx.stroke();
     // 입 벌어짐 → 안쪽 어둠 + 자연스러운 윗니
-    const mOpen=Math.abs(map(P[13]).y-map(P[14]).y);
-    if(mOpen>fH*0.035){ ctx.save(); smoothPoly(ctx,lipPts); ctx.clip();
-      const u13=map(P[13]);
-      // 입 안쪽(어두운 적색) — 아래쪽 위주로
-      ctx.fillStyle="#6e2a30"; ctx.beginPath(); ctx.ellipse(lcm.x, lcm.y+mOpen*0.18, fW*0.13, mOpen*0.55+fH*0.006,0,0,Math.PI*2); ctx.fill();
-      // 윗니: 윗입술 안쪽을 따라가는 흰 띠(블록 X)
-      const th=Math.max(fH*0.012, mOpen*0.36);
-      ctx.fillStyle="#f6f1e8"; ctx.beginPath();
-      ctx.moveTo(lc1.x+fW*0.025, u13.y); ctx.quadraticCurveTo(lcm.x, u13.y-fH*0.006, lc2.x-fW*0.025, u13.y);
-      ctx.lineTo(lc2.x-fW*0.025, u13.y+th); ctx.quadraticCurveTo(lcm.x, u13.y+th+fH*0.006, lc1.x+fW*0.025, u13.y+th); ctx.closePath(); ctx.fill();
-      // 치아 사이 미세 분리선
-      ctx.strokeStyle="rgba(150,120,110,0.30)"; ctx.lineWidth=lw*0.5;
-      for(let kk=-2;kk<=2;kk++){ const xx=lcm.x+kk*fW*0.045; ctx.beginPath(); ctx.moveTo(xx,u13.y+fH*0.003); ctx.lineTo(xx,u13.y+th*0.85); ctx.stroke(); }
+    const m13=map(P[13]), m14=map(P[14]); const mOpen=Math.abs(m13.y-m14.y);
+    if(mOpen>fH*0.03){ ctx.save(); smoothPoly(ctx,lipPts); ctx.clip();
+      const topY=m13.y, botY=m14.y, midX=lcm.x, big=mOpen>fH*0.06;
+      const xL=lc1.x+mouthW*0.06, xR=lc2.x-mouthW*0.06, halfW=Math.max(fW*0.04,(xR-xL)/2), cy=(topY+botY)/2;
+      // 1) 입안(안쪽 어둠) — 뒤로 갈수록 어둡게
+      const ig=ctx.createRadialGradient(midX,cy,2,midX,cy,Math.max(halfW,mOpen*0.9));
+      ig.addColorStop(0,"#3a0f14"); ig.addColorStop(0.55,"#5d1f25"); ig.addColorStop(1,"#79292f");
+      ctx.fillStyle=ig; ctx.fillRect(0,0,w,h);
+      // 2) 혀(아래 가운데) — 크게 벌릴 때
+      if(big){ ctx.fillStyle="#c06a6a"; ctx.beginPath(); ctx.ellipse(midX, botY-mOpen*0.10, halfW*0.62, mOpen*0.32,0,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=0.4; ctx.fillStyle="#a3504f"; ctx.beginPath(); ctx.ellipse(midX, botY-mOpen*0.08, halfW*0.26, mOpen*0.20,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+      // 3) 윗니 — 잇몸선 따라 흰 띠 + 치아 분리 + 아래 그림자
+      const uth=Math.max(fH*0.014, mOpen*(big?0.30:0.46));
+      ctx.fillStyle="#f7f2e9"; ctx.beginPath();
+      ctx.moveTo(xL, topY); ctx.quadraticCurveTo(midX, topY-fH*0.006, xR, topY);
+      ctx.lineTo(xR, topY+uth); ctx.quadraticCurveTo(midX, topY+uth+fH*0.006, xL, topY+uth); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle="rgba(150,120,110,0.32)"; ctx.lineWidth=lw*0.5;
+      for(let k=-3;k<=3;k++){ const xx=midX+k*halfW*0.32; if(xx<=xL+1||xx>=xR-1) continue; ctx.beginPath(); ctx.moveTo(xx,topY+fH*0.002); ctx.lineTo(xx,topY+uth*0.9); ctx.stroke(); }
+      // 앞니 두 개(중앙) 강조 — 한 덩어리로 안 보이게
+      { const fgap=halfW*0.17; ctx.save();
+        ctx.strokeStyle="rgba(120,95,88,0.5)"; ctx.lineWidth=lw*0.75; ctx.beginPath(); ctx.moveTo(midX,topY+fH*0.001); ctx.lineTo(midX,topY+uth*0.95); ctx.stroke();
+        ctx.fillStyle="rgba(255,255,255,0.5)";
+        ctx.beginPath(); ctx.ellipse(midX-fgap*0.55, topY+uth*0.5, fgap*0.45, uth*0.42,0,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(midX+fgap*0.55, topY+uth*0.5, fgap*0.45, uth*0.42,0,0,Math.PI*2); ctx.fill();
+        ctx.restore(); }
+      ctx.save(); ctx.globalAlpha=0.16; ctx.fillStyle="#000"; ctx.fillRect(xL, topY+uth, xR-xL, Math.max(1,fH*0.006)); ctx.restore();
+      // 4) 아랫니 — 크게 벌릴 때
+      if(big){ const lth=Math.max(fH*0.010, mOpen*0.18); const iL=xL+halfW*0.16, iR=xR-halfW*0.16;
+        ctx.fillStyle="#ece3d5"; ctx.beginPath();
+        ctx.moveTo(iL, botY-lth); ctx.quadraticCurveTo(midX, botY-lth-fH*0.004, iR, botY-lth);
+        ctx.lineTo(iR, botY); ctx.quadraticCurveTo(midX, botY+fH*0.004, iL, botY); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle="rgba(150,120,110,0.26)"; ctx.lineWidth=lw*0.45;
+        for(let k=-2;k<=2;k++){ const xx=midX+k*halfW*0.30; if(xx<=iL+1||xx>=iR-1) continue; ctx.beginPath(); ctx.moveTo(xx,botY-lth*0.85); ctx.lineTo(xx,botY-fH*0.002); ctx.stroke(); } }
       ctx.restore(); }
     ctx.strokeStyle=PAL.line; ctx.lineWidth=lw*0.85; smoothPoly(ctx,lipPts); ctx.stroke();
     // 웃는 표정: 입꼬리 보조개 + 광대(볼) 올라감
@@ -1301,6 +1335,8 @@
     ctx.strokeStyle=hairHi; ctx.lineWidth=u*1.3; ctx.globalAlpha=0.55;
     for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(C.x+i*fW*0.12-fW*0.05, minY-fH*0.02); ctx.quadraticCurveTo(C.x+i*fW*0.16, minY-fH*0.12, C.x+i*fW*0.2+fW*0.06, minY-fH*0.02); ctx.stroke(); }
     ctx.globalAlpha=1; }
+    // 모자/헤어밴드(사진 인식) — 맨 위
+    try{ if(__headwear) drawHeadwearOn(ctx, map, fW, fH, lw, __headwear); }catch(_){}
   }
   function detectLipColor(ctx, lm, W, H){
     if(!lm) return null;
@@ -1372,15 +1408,104 @@
       const inten=Math.max(beard.jaw,beard.chin);
       ctx.globalAlpha=Math.min(0.6,0.16+0.5*inten); ctx.fillStyle=rgba(1); ctx.fillRect(bx0-5,by0-5,(bx1-bx0)+10,(by1-by0)+10);
       ctx.globalAlpha=Math.min(0.6,0.26+0.4*inten); ctx.fillStyle=rgba(1);
-      const step=Math.max(3,fW*0.02), dot=Math.max(0.7,fW*0.0055);
+      const step=Math.max(2.4,fW*0.02*(1.25-0.55*inten)), dot=Math.max(0.7,fW*0.0055);   // 숱 많을수록 촘촘
       for(let y=by0;y<by1;y+=step) for(let x=bx0;x<bx1;x+=step){ ctx.beginPath(); ctx.arc(x+(Math.random()-0.5)*step,y+(Math.random()-0.5)*step,dot*(0.6+Math.random()),0,Math.PI*2); ctx.fill(); }
+      // 턱 끝 숱 집중(모양 또렷)
+      const _ch=map(P[152]); ctx.globalAlpha=Math.min(0.55,0.18+0.4*inten); ctx.fillStyle=rgba(1);
+      ctx.beginPath(); ctx.ellipse(_ch.x,(low.y+_ch.y)/2+fH*0.01, fW*0.14, (_ch.y-low.y)*0.7+fH*0.02,0,0,Math.PI*2); ctx.fill();
       ctx.restore();
     }
     if(beard.must>0.13){
       ctx.save(); ctx.globalAlpha=Math.min(0.85,0.26+0.55*beard.must); ctx.fillStyle=rgba(1);
-      ctx.beginPath(); ctx.moveTo(lc.x,lc.y-fH*0.004); ctx.quadraticCurveTo(n2.x,n2.y+fH*0.004,rc.x,rc.y-fH*0.004);
-      ctx.quadraticCurveTo(n2.x,ul.y-fH*0.004,lc.x,lc.y-fH*0.004); ctx.closePath(); ctx.fill(); ctx.restore();
+      const _mc=n2.x, _top=Math.min(n2.y,ul.y)-fH*0.002, _dip=ul.y+fH*0.012;
+      ctx.beginPath();
+      ctx.moveTo(lc.x,lc.y-fH*0.002); ctx.quadraticCurveTo((lc.x+_mc)/2,_top,_mc,ul.y-fH*0.003); ctx.quadraticCurveTo((rc.x+_mc)/2,_top,rc.x,rc.y-fH*0.002);
+      ctx.quadraticCurveTo((rc.x+_mc)/2,rc.y+fH*0.012,_mc,_dip); ctx.quadraticCurveTo((lc.x+_mc)/2,lc.y+fH*0.012,lc.x,lc.y-fH*0.002);
+      ctx.closePath(); ctx.fill(); ctx.restore();
     }
+  }
+  function detectGlasses(ctx, lm, W, H){
+    if(!lm||!lm[33]||!lm[263]||!lm[133]||!lm[362]) return null;
+    const box=(cx,cy,rad)=>{ cx=Math.round(cx); cy=Math.round(cy); rad=Math.max(2,rad|0);
+      const x0=Math.max(0,cx-rad), y0=Math.max(0,cy-rad), w=Math.min(rad*2+1,W-x0), h=Math.min(rad*2+1,H-y0); if(w<=0||h<=0) return null;
+      const d=ctx.getImageData(x0,y0,w,h).data; let s=0,n=0,mn=255,r=0,g=0,b=0;
+      for(let k=0;k<d.length;k+=4){ const l=0.299*d[k]+0.587*d[k+1]+0.114*d[k+2]; s+=l;n++; if(l<mn) mn=l; r+=d[k];g+=d[k+1];b+=d[k+2]; }
+      if(!n) return null; return {mean:s/n, min:mn, rgb:[Math.round(r/n),Math.round(g/n),Math.round(b/n)]}; };
+    const px=(i)=>({x:lm[i].x*W, y:lm[i].y*H});
+    const eyeW=Math.abs(lm[263].x-lm[33].x)*W; const rad=Math.max(3,eyeW*0.05);
+    const eh=Math.max(4, Math.abs((lm[145]?lm[145].y:lm[33].y)-(lm[159]?lm[159].y:lm[33].y))*H);
+    const skinB=[117,346,50,280].map(i=>{ const q=px(i); return box(q.x,q.y,rad); }).filter(Boolean);
+    if(!skinB.length) return null; const skinLum=skinB.reduce((a,c)=>a+c.mean,0)/skinB.length;
+    const bm={x:(lm[133].x+lm[362].x)/2*W, y:(lm[133].y+lm[362].y)/2*H - eyeW*0.03};
+    const bridge=box(bm.x,bm.y,Math.max(2,eyeW*0.05)); if(!bridge) return null;
+    const fr=[]; const addF=(i,dx,dy)=>{ if(!lm[i]) return; const q=px(i); const b=box(q.x+dx,q.y+dy,rad); if(b) fr.push(b); };
+    addF(159,0,-eh*1.0); addF(386,0,-eh*1.0); addF(145,0,eh*0.9); addF(374,0,eh*0.9); addF(33,-eyeW*0.10,0); addF(263,eyeW*0.10,0);
+    if(fr.length<3) return null;
+    const frameMin=Math.min.apply(null,fr.map(f=>f.min));
+    const frameMean=fr.reduce((a,c)=>a+c.mean,0)/fr.length;
+    const bridgeDark=skinLum-bridge.mean, frameDark=skinLum-frameMean, darkest=skinLum-frameMin;
+    const present = bridgeDark>13 && (darkest>34 || frameDark>10);
+    if(!present) return null;
+    const thick=Math.max(0,Math.min(1,(darkest-40)/110));
+    const fcol=fr.slice().sort((a,b)=>a.min-b.min)[0].rgb;
+    return {thick, rgb:fcol};
+  }
+  function drawGlasses(ctx, cL, cR, P, map, fW, fH, lw, g){
+    const col=g.rgb||[40,38,42]; const thick=Math.max(0,Math.min(1,g.thick==null?0.5:g.thick));
+    const eLw=Math.hypot(map(P[133]).x-map(P[33]).x, map(P[133]).y-map(P[33]).y);
+    const eRw=Math.hypot(map(P[362]).x-map(P[263]).x, map(P[362]).y-map(P[263]).y);
+    const rxL=Math.max(fW*0.055,eLw*0.72), rxR=Math.max(fW*0.055,eRw*0.72), ry=Math.max(fW*0.05,((rxL+rxR)/2)*0.72);
+    const fw=lw*(1.0+3.0*thick), c1=`rgb(${col[0]},${col[1]},${col[2]})`;
+    const lens=(c,rx)=>{ const x=c.x-rx,y=c.y-ry,w=2*rx,h=2*ry,r=Math.min(rx,ry)*0.7; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x,y,w,h,r); else ctx.ellipse(c.x,c.y,rx,ry,0,0,Math.PI*2); };
+    ctx.save(); ctx.lineJoin="round"; ctx.lineCap="round";
+    ctx.fillStyle= thick>0.5? "rgba(35,40,48,0.12)":"rgba(170,190,210,0.10)";
+    lens(cL,rxL); ctx.fill(); lens(cR,rxR); ctx.fill();
+    for(const [c,rx] of [[cL,rxL],[cR,rxR]]){ ctx.save(); lens(c,rx); ctx.clip(); ctx.globalAlpha=0.5; ctx.strokeStyle="rgba(255,255,255,0.7)"; ctx.lineWidth=Math.max(1,fw*0.4); ctx.beginPath(); ctx.moveTo(c.x-rx*0.5,c.y-ry*0.5); ctx.lineTo(c.x+rx*0.1,c.y-ry*0.75); ctx.stroke(); ctx.restore(); }
+    ctx.strokeStyle=c1; ctx.lineWidth=fw; lens(cL,rxL); ctx.stroke(); lens(cR,rxR); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cL.x+rxL, cL.y-ry*0.15); ctx.quadraticCurveTo((cL.x+cR.x)/2, cL.y-ry*0.45, cR.x-rxR, cR.y-ry*0.15); ctx.stroke();
+    const earL=P[234]?map(P[234]):{x:cL.x-rxL*2,y:cL.y}, earR=P[454]?map(P[454]):{x:cR.x+rxR*2,y:cR.y};
+    ctx.beginPath(); ctx.moveTo(cL.x-rxL, cL.y-ry*0.1); ctx.lineTo(earL.x, earL.y-fH*0.01); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cR.x+rxR, cR.y-ry*0.1); ctx.lineTo(earR.x, earR.y-fH*0.01); ctx.stroke();
+    if(thick<=0.5){ ctx.globalAlpha=0.55; ctx.strokeStyle="rgba(255,255,255,0.55)"; ctx.lineWidth=Math.max(0.8,fw*0.35); lens(cL,rxL*0.9); ctx.stroke(); lens(cR,rxR*0.9); ctx.stroke(); ctx.globalAlpha=1; }
+    ctx.restore();
+  }
+  function detectHeadwear(arr, mw, mh, ctx, lm, W, H){
+    if(!lm||!lm[10]||!lm[234]||!lm[454]) return null;
+    const browY=(((lm[105]?lm[105].y:lm[10].y)+(lm[334]?lm[334].y:lm[10].y))/2)*mh;
+    const foreheadTopY=lm[10].y*mh, faceCx=lm[10].x*mw, faceW=Math.abs(lm[454].x-lm[234].x)*mw;
+    const yLimit=browY + (browY-foreheadTopY)*0.15;
+    let n45=0,x0=1e9,y0=1e9,x1=-1e9,y1=-1e9,sumX=0,sumY=0; const yEnd=Math.min(mh,Math.ceil(yLimit));
+    for(let y=0;y<yEnd;y++){ const row=y*mw; for(let x=0;x<mw;x++){ const c=arr[row+x]; if(c===4||c===5){ if(Math.abs(x-faceCx)>faceW*0.95) continue; n45++; sumX+=x;sumY+=y; if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y; } } }
+    if(n45 < mw*mh*0.003) return null;
+    const cxm=sumX/n45, cym=sumY/n45; let sr=0,sg=0,sb=0,scn=0;
+    for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++){ const pxx=Math.round((cxm+dx*mw*0.02)/mw*W), pyy=Math.round((cym+dy*mh*0.02)/mh*H); if(pxx>=0&&pyy>=0&&pxx<W&&pyy<H){ const d=ctx.getImageData(pxx,pyy,1,1).data; sr+=d[0];sg+=d[1];sb+=d[2];scn++; } }
+    if(scn<3) return null;
+    const rgb=[Math.round(sr/scn),Math.round(sg/scn),Math.round(sb/scn)];
+    const bw=x1-x0, bh=y1-y0;
+    const band=(bh < (browY-foreheadTopY)*1.3) && (bw > faceW*0.55);
+    return { type: band?"band":"hat", rgb, x0:x0/mw, x1:x1/mw, y0:y0/mh, y1:y1/mh };
+  }
+  function drawHeadwearOn(ctx, map, fW, fH, lw, hw){
+    const rgb=hw.rgb||[60,60,70];
+    const c1=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    const sh=`rgb(${Math.round(rgb[0]*0.7)},${Math.round(rgb[1]*0.7)},${Math.round(rgb[2]*0.7)})`;
+    const hi=`rgb(${Math.min(255,Math.round(rgb[0]*1.25))},${Math.min(255,Math.round(rgb[1]*1.25))},${Math.min(255,Math.round(rgb[2]*1.25))})`;
+    const TL=map({x:hw.x0,y:hw.y0}), TR=map({x:hw.x1,y:hw.y0}), BL=map({x:hw.x0,y:hw.y1}), BR=map({x:hw.x1,y:hw.y1});
+    const w=Math.hypot(TR.x-TL.x,TR.y-TL.y), midX=(TL.x+TR.x)/2, topY=Math.min(TL.y,TR.y), botY=Math.max(BL.y,BR.y), hh=Math.max(2,botY-topY);
+    ctx.save(); ctx.lineJoin="round"; ctx.strokeStyle=PAL.line; ctx.lineWidth=lw*1.1;
+    if(hw.type==="band"){
+      ctx.fillStyle=c1; ctx.beginPath();
+      ctx.moveTo(BL.x, BL.y); ctx.quadraticCurveTo(midX, topY-hh*0.3, BR.x, BR.y);
+      ctx.lineTo(BR.x, botY); ctx.quadraticCurveTo(midX, botY+hh*0.15, BL.x, botY); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.globalAlpha=0.45; ctx.strokeStyle=hi; ctx.lineWidth=lw*0.8; ctx.beginPath(); ctx.moveTo(BL.x+w*0.08,(BL.y+topY)/2); ctx.quadraticCurveTo(midX, topY+hh*0.1, BR.x-w*0.08,(BR.y+topY)/2); ctx.stroke();
+    } else {
+      ctx.fillStyle=c1; ctx.beginPath();
+      ctx.moveTo(BL.x, BL.y); ctx.bezierCurveTo(BL.x, topY-hh*0.25, BR.x, topY-hh*0.25, BR.x, BR.y);
+      ctx.quadraticCurveTo(midX, botY+hh*0.10, BL.x, BL.y); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.save(); ctx.clip(); const g=ctx.createLinearGradient(0,topY-hh*0.25,0,botY); g.addColorStop(0,hi); g.addColorStop(0.5,"rgba(0,0,0,0)"); g.addColorStop(1,sh); ctx.globalAlpha=0.5; ctx.fillStyle=g; ctx.fillRect(TL.x-w,topY-hh,w*3,hh*2.4); ctx.restore();
+      ctx.strokeStyle=sh; ctx.lineWidth=lw*2.2; ctx.beginPath(); ctx.moveTo(BL.x, BL.y); ctx.quadraticCurveTo(midX, botY+hh*0.05, BR.x, BR.y); ctx.stroke();
+    }
+    ctx.restore();
   }
   function featurePts(P, map){
     const avg=(idxs)=>{let x=0,y=0; for(const i of idxs){const q=map(P[i]); x+=q.x;y+=q.y;} return {x:x/idxs.length,y:y/idxs.length};};
@@ -1879,7 +2004,7 @@
   async function handleFile(file, forced=null){
     if(!file||!file.type.startsWith("image/")){ setStatus("fail","이미지 파일만 가능"); return; }
     lastPhotoFile=file;
-    setStatus("loading","분석 엔진 준비 중…"); dentL=dentR=0; ended=false; hairLayer=null; avgSkin=null; avgHair=null; photoGray=false; photoEarrings=null; photoHairPoly=null; __beard=null; __lipColor=null; __eyes=null; __brows=null; photoLineArt=null; lineSrc=null; lineMul=1; exagMul=1; try{el("lineRange").value=50; el("exagRange").value=50;}catch(_){}
+    setStatus("loading","분석 엔진 준비 중…"); dentL=dentR=0; ended=false; hairLayer=null; avgSkin=null; avgHair=null; photoGray=false; photoEarrings=null; photoHairPoly=null; __beard=null; __lipColor=null; __eyes=null; __brows=null; __glasses=null; __headwear=null; photoLineArt=null; lineSrc=null; lineMul=1; exagMul=1; try{el("lineRange").value=50; el("exagRange").value=50;}catch(_){}
     if(!(await ensureEngine()) || !faceLandmarker){ setStatus("fail","분석 엔진을 불러오지 못했습니다. 네트워크 확인 후 새로고침 해주세요."); return; }
     let src;
     try{ setStatus("loading","이미지 불러오는 중…"); src=await loadOriented(file); }
@@ -1926,6 +2051,7 @@
         // 귀걸이 인식(귀 아래 분리 블롭)
         try{ const lm=res.faceLandmarks[0]; if(lm[234]&&lm[454]){ const er=detectEarrings(arr, mw, mh, [{x:lm[234].x,y:lm[234].y},{x:lm[454].x,y:lm[454].y}]); photoEarrings={e234:er[0], e454:er[1]}; } }catch(_){}
         if(col.hairN > mw*mh*0.012){ photoHairPoly=buildHairPoly(arr, mw, mh); if(!photoHairPoly) hairLayer=buildHairLayer(arr, mw, mh, hairRGB); }
+        try{ __headwear=detectHeadwear(arr, mw, mh, tmpCtx, res.faceLandmarks[0], WW, WH); }catch(_){ __headwear=null; }
       }catch(se){ console.warn("seg 처리 실패", se); hairLayer=null; photoHairPoly=null; }
     }
     if(res && res.faceLandmarks && res.faceLandmarks.length){ try{ const ih=hexToRGB(avgHair||PAL.hair); const inkRGB=[Math.min(74,Math.round(ih[0]*0.38+16)),Math.min(70,Math.round(ih[1]*0.38+14)),Math.min(78,Math.round(ih[2]*0.38+20))]; photoLineArt=generateLineArt(tmpCanvas, inkRGB, res.faceLandmarks[0], WW, WH); }catch(le){ console.warn("lineart 실패", le); photoLineArt=null; } }
@@ -1936,7 +2062,7 @@
       el("photoCtl").classList.add("show"); setStatus("fail", forced!=null? "이 각도에선 얼굴 인식이 약해요 — 🔄 회전을 한 번 더 눌러보세요." : "얼굴을 찾지 못했어요. 얼굴이 크게·정면으로 나온 밝은 사진을 써보세요.");
       { const od=el("odbg"); if(od){ od.style.display=DBG?"block":"none"; od.textContent="🔧 "+(__orientDbg||"?")+" · rot"+detRot+" · 얼굴없음"; } } return;
     }
-    photoLM=res.faceLandmarks[0]; faceFound=true; try{ __beard=detectBeard(tmpCtx, photoLM, WW, WH); }catch(_){ __beard=null; } try{ __lipColor=detectLipColor(tmpCtx, photoLM, WW, WH); }catch(_){ __lipColor=null; } try{ __eyes=detectEyes(tmpCtx, photoLM, WW, WH); }catch(_){ __eyes=null; } try{ __brows=detectBrows(tmpCtx, photoLM, WW, WH); }catch(_){ __brows=null; } bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
+    photoLM=res.faceLandmarks[0]; faceFound=true; try{ __beard=detectBeard(tmpCtx, photoLM, WW, WH); }catch(_){ __beard=null; } try{ __lipColor=detectLipColor(tmpCtx, photoLM, WW, WH); }catch(_){ __lipColor=null; } try{ __eyes=detectEyes(tmpCtx, photoLM, WW, WH); }catch(_){ __eyes=null; } try{ __brows=detectBrows(tmpCtx, photoLM, WW, WH); }catch(_){ __brows=null; } try{ __glasses=detectGlasses(tmpCtx, photoLM, WW, WH); }catch(_){ __glasses=null; } bakePhotoCaricature(); fitPortrait(); el("photoCtl").classList.add("show"); showModePicker();
     setStatus("ok","캐리커쳐 생성 완료"+(detRot?(" · 자동회전 "+detRot+"°"):"")+" — 볼을 톡 쳐서 참교육!"); if(total===0) el("tapHint").classList.add("show"); updateLineCtl();
     { const od=el("odbg"); if(od){ od.style.display=DBG?"block":"none"; od.textContent="🔧 "+(__orientDbg||"?")+" · work"+bw+"x"+bh+" · rot"+detRot+" · yaw"+(__lastYaw||0).toFixed(2)+" · "+(__faceDeleg||"?"); } }
   }
@@ -1959,7 +2085,7 @@
 
   /* ─────────── 모드 ─────────── */
   function clearPlay(){ effects.length=0; warps.length=0; combo=0; dentL=dentR=0; ended=false; moodSad=0; __moodStep=-1; if(mode==="photo") rerenderPhotoMood(); gauge=0; feverUntil=0; hitPulse=0; lastJudge=null; perfectStreak=0; speedFeverRun=0; tPerfect=0; tGood=0; tMiss=0; lastBeatIdx=-1; const gf=el("gaugeFill"); if(gf) gf.style.width="0%"; const gl=el("gaugeLabel"); if(gl) gl.textContent=""; glCanvas.style.transform="none"; fxCanvas.style.transform="none"; el("comboNum").textContent="0"; el("endOverlay").classList.remove("show"); el("comboBadge").classList.remove("show"); el("tapHint").classList.remove("show"); }
-  function switchMode(m){ if(m===mode) return; cancelRun(); mode=m; hairLayer=null; avgSkin=null; avgHair=null; hairLive=null;
+  function switchMode(m){ if(m===mode) return; cancelRun(); mode=m; hairLayer=null; avgSkin=null; avgHair=null; hairLive=null; __glasses=null; __headwear=null;
     el("mWebcam").classList.toggle("active",m==="webcam"); el("mPhoto").classList.toggle("active",m==="photo");
     if(cam.srcObject){ cam.srcObject.getTracks().forEach(t=>t.stop()); cam.srcObject=null; }
     clearPlay(); faceFound=false; cheekL=cheekR=noseP=mouthP=null; el("camMsg").style.display="none"; el("resultOverlay").classList.remove("show");
