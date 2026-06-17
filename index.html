@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v21</div>
+    <div class="step-badge">참교육 v22</div>
   </header>
 
   <div class="toolbar">
@@ -1218,6 +1218,21 @@
       ctx.beginPath(); ctx.moveTo(n2.x-pw, n2.y+philLen*0.12); ctx.quadraticCurveTo(n2.x-pw*0.85,(n2.y+ulTop.y)/2, ulTop.x-pw*0.7, ulTop.y); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(n2.x+pw, n2.y+philLen*0.12); ctx.quadraticCurveTo(n2.x+pw*0.85,(n2.y+ulTop.y)/2, ulTop.x+pw*0.7, ulTop.y); ctx.stroke();
       ctx.restore();
+    }catch(_){}
+    // ===== 8.5) 얼굴 디테일 — 팔자주름·눈밑·이마 하이라이트 =====
+    try{ ctx.save(); ctx.lineCap="round";
+      // 팔자주름(코→입꼬리)
+      ctx.globalAlpha=0.22*st.shade; ctx.strokeStyle=skinSh2; ctx.lineWidth=lw*0.9;
+      ctx.beginPath(); ctx.moveTo(nL.x-fW*0.008, nL.y); ctx.quadraticCurveTo(nL.x-fW*0.03,(nL.y+lc1.y)/2, lc1.x-fW*0.004, lc1.y+fH*0.006); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(nR.x+fW*0.008, nR.y); ctx.quadraticCurveTo(nR.x+fW*0.03,(nR.y+lc2.y)/2, lc2.x+fW*0.004, lc2.y+fH*0.006); ctx.stroke();
+      // 눈밑(옅은 그늘)
+      ctx.globalAlpha=0.15*st.shade; ctx.lineWidth=lw*0.8;
+      for(const eb of [[33,133,145],[263,362,374]]){ if(!P[eb[0]]||!P[eb[1]]||!P[eb[2]]) continue; const po=map(P[eb[0]]),pi=map(P[eb[1]]),pb=map(P[eb[2]]); ctx.beginPath(); ctx.moveTo(po.x,po.y+fH*0.008); ctx.quadraticCurveTo(pb.x,pb.y+fH*0.018,pi.x,pi.y+fH*0.008); ctx.stroke(); }
+      ctx.restore();
+      // 이마 하이라이트(빛 방향 일관)
+      if(P[10]){ const fh=map(P[10]); ctx.save(); try{ ctx.filter="blur("+Math.max(1,fW*0.022)+"px)"; }catch(_){}
+        ctx.globalAlpha=0.26*(st.hi||0.9)*st.shade; ctx.fillStyle=skinHi;
+        ctx.beginPath(); ctx.ellipse(fh.x-fW*0.04, fh.y+fH*0.06, fW*0.15, fH*0.085, -0.18,0,Math.PI*2); ctx.fill(); ctx.restore(); }
     }catch(_){}
     // ===== 9) 앞머리(합성, 사이드 스윕) — 실제 머리 없을 때만 =====
     if(!hideSynthHair){ ctx.fillStyle=hair; ctx.beginPath();
