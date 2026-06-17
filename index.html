@@ -191,7 +191,7 @@
 <div class="wrap">
   <header>
     <div class="brand"><div class="logo"><b>참</b>교육 LAB</div><small>스트레스 해소 토이</small></div>
-    <div class="step-badge">참교육 v22</div>
+    <div class="step-badge">참교육 v32</div>
   </header>
 
   <div class="toolbar">
@@ -354,6 +354,9 @@
 
   let faceLandmarker=null, runningMode=null, segmenter=null, segMode=null;
   let hairLayer=null, avgSkin=null, avgHair=null, photoGray=false, photoEarrings=null, photoHairPoly=null, __beard=null, __lipColor=null, __eyes=null, __brows=null;
+  let moodSad=0, __moodStep=-1, __photoP=null, __photoMapF=null;
+  let gladUntil=0, __lastGladRender=0, __gladRevertT=null; const GLAD_DUR=750;
+  const BRAGS=["흥!","훗!","어때!","약하군!","후훗","멋지지?"];
   let hairLive=null, segTick=0; const SEG_EVERY=4;
   const segCv=document.createElement("canvas"), segCtx=segCv.getContext("2d");
   let mode="photo", hand="normal", ended=false;
@@ -465,6 +468,10 @@
   function brownize(c,k){ const L=0.299*c[0]+0.587*c[1]+0.114*c[2]; const t=Math.max(0,Math.min(1,L/255));
     const br=[Math.round(28+(168-28)*t), Math.round(20+(120-20)*t), Math.round(14+(82-14)*t)];
     return [Math.round(c[0]+(br[0]-c[0])*k), Math.round(c[1]+(br[1]-c[1])*k), Math.round(c[2]+(br[2]-c[2])*k)]; }
+  function warmSkin(rgb){ const l=(rgb[0]+rgb[1]+rgb[2])/3, t=Math.max(0,Math.min(1,l/255));
+    const ramp=[[92,58,44],[220,160,122],[250,224,198]]; let c;
+    if(t<0.5){ const k=t/0.5; c=ramp[0].map((v,i)=>v+(ramp[1][i]-v)*k); } else { const k=(t-0.5)/0.5; c=ramp[1].map((v,i)=>v+(ramp[2][i]-v)*k); }
+    return c.map(v=>Math.round(v)); }
   function sampleColors(photoCv, mask, mw, mh){
     const sc=document.createElement("canvas"); sc.width=mw; sc.height=mh; const sx=sc.getContext("2d"); sx.drawImage(photoCv,0,0,mw,mh);
     const px=sx.getImageData(0,0,mw,mh).data; let hr=0,hg=0,hb=0,hn=0, satSum=0, satN=0; const skinPx=[];
@@ -598,11 +605,11 @@
     const {labels,sizes,count}=labelComponents(hb,mw,mh); if(!count) return null;
     let maxSz=0; for(let c=1;c<=count;c++) if(sizes[c]>maxSz) maxSz=sizes[c];
     const polys=[];
-    for(let c=1;c<=count;c++){ if(sizes[c] < maxSz*0.18) continue;
+    for(let c=1;c<=count;c++){ if(sizes[c] < maxSz*0.30) continue;
       let si=-1; for(let i=0;i<mw*mh;i++){ if(labels[i]===c){ si=i; break; } } if(si<0) continue;
       const tr=traceOutline(labels,mw,mh,si%mw,(si/mw)|0,c); if(tr.length<10) continue;
-      let sp=dpSimplify(tr, Math.max(1.4, mw*0.009)); if(sp.length<6) continue;  // 더 과감히 단순화(잔거칠음 제거)
-      sp=chaikin(sp, 2);                                                          // 모서리 둥글게
+      let sp=dpSimplify(tr, Math.max(2.2, mw*0.016)); if(sp.length<6) continue;  // 더 과감히 단순화
+      sp=chaikin(sp, 4);                                                          // 모서리 더 둥글게
       polys.push(sp.map(p=>({x:(p.x+0.5)/mw, y:(p.y+0.5)/mh}))); }
     return polys.length? {polys} : null;
   }
@@ -919,6 +926,29 @@
     const skin=st.skin||PAL.skin, hair=st.hair||PAL.hair;
     const skinSh=shade(skin,-0.13), skinSh2=shade(skin,-0.24), skinHi=shade(skin,0.12*st.hi);
     const hairSh=shade(hair,-0.28), hairHi=shade(hair,0.45);
+    // 동안(어린이) 추정 — 눈/둥근얼굴/하관 비율
+    let childness=0; try{
+      const ewp=(Math.hypot(map(P[133]).x-map(P[33]).x,map(P[133]).y-map(P[33]).y)+Math.hypot(map(P[263]).x-map(P[362]).x,map(P[263]).y-map(P[362]).y))/2;
+      const faceW=Math.hypot(map(P[454]).x-map(P[234]).x,map(P[454]).y-map(P[234]).y);
+      const top=map(P[10]), chin0=map(P[152]); const eyeY=(map(P[33]).y+map(P[133]).y+map(P[362]).y+map(P[263]).y)/4;
+      const cEye=Math.max(0,Math.min(1,(ewp/Math.max(1,faceW)-0.20)/0.07));
+      const cRound=Math.max(0,Math.min(1,(faceW/Math.max(1,Math.hypot(chin0.x-top.x,chin0.y-top.y))-0.74)/0.16));
+      const lowerR=(chin0.y-eyeY)/Math.max(1,(chin0.y-top.y)); const cLower=Math.max(0,Math.min(1,(0.66-lowerR)/0.14));
+      let cn=cEye*0.5+cRound*0.28+cLower*0.22; cn=Math.max(0,Math.min(1,(cn-0.12)/0.66)); childness=cn*cn*(3-2*cn); // 경계 또렷하게
+    }catch(_){}
+    // 어린이는 세로로 살짝 압축 → 길쭉함↓, 둥근 얼굴
+    if(childness>0.2){ const _m=map, _c=_m(centroid(P,ovalIdx)), _cy=_c.y, _cx=_c.x, _ky=1-0.18*childness, _kx=1+0.05*childness; map=(pp)=>{ const q=_m(pp); return {x:_cx+(q.x-_cx)*_kx, y:_cy+(q.y-_cy)*_ky}; }; }
+    // 표정 강도: 웃음(+)~시무룩(-) — 입꼬리 높이 + 입 너비
+    let expr=0; try{
+      const lc1e=map(P[61]),lc2e=map(P[291]),ute=map(P[0]),lbe=map(P[17]);
+      const fhp=Math.max(1,Math.abs(map(P[152]).y-map(P[10]).y)), fwp=Math.max(1,Math.hypot(map(P[454]).x-map(P[234]).x,map(P[454]).y-map(P[234]).y));
+      const mw2=Math.hypot(lc2e.x-lc1e.x,lc2e.y-lc1e.y), midY=(ute.y+lbe.y)/2, cornerY=(lc1e.y+lc2e.y)/2;
+      const liftCue=(midY-cornerY)/(fhp*0.045), widthCue=Math.max(0,(mw2/fwp-0.42)/0.18);
+      expr=Math.max(-1,Math.min(1, liftCue + (liftCue>0?widthCue*0.4:0)));
+    }catch(_){}
+    const gladV=opts.glad||0, sadV=opts.sad||0;
+    expr=Math.max(-1,Math.min(1, expr - sadV*1.7 + gladV*1.8));   // 피해→시무룩, 콤보→의기양양
+    const smileK=Math.max(0,expr), sadK=Math.max(0,-expr);
     const C=map(centroid(P,ovalIdx));
     const ovPts=ring(P,ovalIdx).map(i=>map(P[i]));
     let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9; for(const p of ovPts){minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);}
@@ -1064,10 +1094,12 @@
       const g=ctx.createRadialGradient(c.x,c.y,1,c.x,c.y,R); g.addColorStop(0,col0); g.addColorStop(1,"rgba(240,140,140,0)"); ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(c.x,c.y,R,fH*(st.gray?0.078:0.06),0,0,Math.PI*2); ctx.fill(); };
     blush(CHEEK_A); blush(CHEEK_B);
 
-    // 광대·턱선 입체 음영(은은하게)
-    try{ drawFaceShade(ctx,P,map,fW,fH,st,skinSh); }catch(_){}
+    // (동안 추정 childness·둥근얼굴 보정은 상단에서 처리됨)
+    // 광대·턱선 입체 음영(어린이는 약하게)
+    try{ drawFaceShade(ctx,P,map,fW,fH,st,skinSh,childness); }catch(_){}
     // ===== 5) 눈썹 (부드러운 테이퍼 셰이프) =====
-    const brow=(idxs)=>{ const all=idxs.filter(i=>P[i]).map(i=>map(P[i])); if(all.length<2) return;
+    const brow=(idxs)=>{ const all0=idxs.filter(i=>P[i]).map(i=>map(P[i])); if(all0.length<2) return;
+      const browDY=-(typeof gladV==="number"?gladV:0)*fH*0.05 + (typeof sadV==="number"?sadV:0)*fH*0.02; const all=all0.map(p=>({x:p.x,y:p.y+browDY})); // 우쭐↑ / 시무룩↓
       const s=[...all].sort((a,b)=>a.x-b.x);
       let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9; for(const p of all){ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y; }
       const bw=Math.max(1,maxX-minX), bth=Math.max(1,maxY-minY);
@@ -1088,7 +1120,8 @@
     const eye=(idxs,side)=>{ const pts0=ring(P,idxs).map(i=>map(P[i])); const c=map(centroid(P,idxs));
       let ew0=0; for(const p of pts0){ ew0=Math.max(ew0,Math.abs(p.x-c.x)); }
       const lenDev=Math.max(0.7,Math.min(1.5,(ew0*2)/(fW*0.20))); const esx=1+(lenDev-1)*0.45; // 눈매 길이 개인차
-      const pts=pts0.map(p=>({x:c.x+(p.x-c.x)*esx, y:p.y}));
+      const cScale=1+0.22*(typeof childness==="number"?childness:0); const eSm=(typeof smileK==="number"?smileK:0);
+      const pts=pts0.map(p=>{ const x=c.x+(p.x-c.x)*esx*cScale; let y=c.y+(p.y-c.y)*cScale; if(eSm>0.18 && y>c.y) y=c.y+(y-c.y)*(1-0.5*eSm); return {x,y}; }); // 웃으면 아래꺼풀↑(반달)
       let ew=0,eh=0; for(const p of pts){ ew=Math.max(ew,Math.abs(p.x-c.x)); eh=Math.max(eh,Math.abs(p.y-c.y)); }
       // 흰자
       ctx.fillStyle=PAL.white; smoothPoly(ctx,pts); ctx.fill();
@@ -1146,7 +1179,8 @@
     ctx.beginPath(); ctx.moveTo(nbTop.x-nW*0.18,nbTop.y); ctx.quadraticCurveTo(nMidX-nW*0.22,(nbTop.y+nTip.y)/2,nTip.x-nW*0.16,nTip.y); ctx.stroke();
     ctx.restore();
     const tipCy=nTip.y+fH*0.006 - upturn*nLen*0.08;
-    const tipRX=nW*(0.34+0.12*wide+0.18*exK*Math.max(0,wide-1)); const tipRY=Math.max(fH*0.016, nLen*0.16*(0.9+0.3*long));
+    const childNose=1-0.22*childness;
+    const tipRX=nW*(0.34+0.12*wide+0.18*exK*Math.max(0,wide-1))*childNose; const tipRY=Math.max(fH*0.016, nLen*0.16*(0.9+0.3*long))*childNose*(1+0.45*childness); // 어린이=둥근 버튼코
     // 코끝 그림자 + 하이라이트(입체)
     ctx.save();
     ctx.globalAlpha=0.5*st.shade; ctx.fillStyle=skinSh; ctx.beginPath(); ctx.ellipse(nTip.x, tipCy, tipRX, tipRY,0,0,Math.PI*2); ctx.fill();
@@ -1166,11 +1200,11 @@
     const nostrilK=(st.nostril!=null? st.nostril : 0.6);
     const nostrilCol=shade(skinSh2,-(0.32+0.38*nostrilK));
     const upC=Math.max(0,Math.min(1,upturn));
-    const noR=nW*Math.min(0.17, 0.085+0.05*upC); const noFlat=upturn>0.12?0.92:0.6;   // 과장에도 상한(0.17*폭)
+    const noR=nW*Math.min(0.17, 0.085+0.05*upC)*(1-0.25*childness); const noFlat=upturn>0.12?0.92:0.6;   // 상한 + 어린이 축소
     const nlx=nTip.x+(nL.x-nTip.x)*0.52, nrx=nTip.x+(nR.x-nTip.x)*0.52;
     const noY=tipCy+tipRY*(0.6-0.25*upC);
     ctx.save();
-    ctx.fillStyle=nostrilCol; ctx.globalAlpha=Math.min(1,(0.55+0.3*upC)*(0.6+0.55*nostrilK));
+    ctx.fillStyle=nostrilCol; ctx.globalAlpha=Math.min(1,(0.55+0.3*upC)*(0.6+0.55*nostrilK)*(1-0.4*childness));
     ctx.beginPath(); ctx.ellipse(nlx,noY,noR,noR*noFlat, 0.34,0,Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(nrx,noY,noR,noR*noFlat,-0.34,0,Math.PI*2); ctx.fill();
     ctx.globalAlpha=Math.min(1,0.4*st.shade*(0.6+0.6*nostrilK)); ctx.strokeStyle=nostrilCol; ctx.lineWidth=lw*0.7; ctx.lineCap="round";
@@ -1185,7 +1219,9 @@
     const upTh=Math.abs(ulIn.y-ulTop.y), loTh=Math.abs(llBot.y-llIn.y);
     const lipDev=Math.max(0.6,Math.min(1.8,((upTh+loTh)/mouthW)/0.34));
     const lipK=1+(lipDev-1)*(0.5+0.7*exK);   // 두꺼운 입술 강조(과장 반영)
-    const lipPts=OUTER_LIP.map(i=>{ const q=map(P[i]); return {x:q.x, y:lcm.y+(q.y-lcm.y)*lipK}; });
+    const sLift=expr*fH*0.05;   // +웃음:입꼬리↑ / -시무룩:입꼬리↓
+    const mChild=1-0.12*childness;
+    const lipPts=OUTER_LIP.map(i=>{ const q=map(P[i]); const x=lcm.x+(q.x-lcm.x)*mChild, y=lcm.y+(q.y-lcm.y)*lipK; const dx=Math.min(1,Math.abs(x-lcm.x)/(mouthW*0.5+1e-3)); return {x, y: y - sLift*dx*dx}; });
     const lipHex = (__lipColor && __lipColor.rgb && !st.gray)? lipHexFrom(__lipColor.rgb, __lipColor.vivid) : null;
     const LIP = st.gray? "#cf5f55" : (lipHex || PAL.lip); const LIPSH = st.gray? "#a8443d" : (lipHex? shade(lipHex,-0.22) : PAL.lipSh);
     const lg=ctx.createLinearGradient(0,lcm.y-fH*0.04,0,lcm.y+fH*0.06); lg.addColorStop(0,shade(LIP,-0.12)); lg.addColorStop(1,shade(LIP,0.1));
@@ -1194,7 +1230,7 @@
     ctx.globalAlpha=0.45*st.shade; ctx.fillStyle=LIPSH; ctx.fillRect(0,0,w,lcm.y);
     ctx.globalAlpha=0.5; ctx.fillStyle="rgba(255,255,255,0.6)"; ctx.beginPath(); ctx.ellipse(lcm.x,(lcm.y+lc1.y)/2+fH*0.03,fW*0.06,fH*0.012,0,0,Math.PI*2); ctx.fill();
     ctx.restore();
-    ctx.strokeStyle=shade(LIP,-0.4); ctx.lineWidth=lw*1.2; ctx.beginPath(); ctx.moveTo(lc1.x,lc1.y); ctx.quadraticCurveTo(lcm.x,lcm.y,lc2.x,lc2.y); ctx.stroke();
+    ctx.strokeStyle=shade(LIP,-0.4); ctx.lineWidth=lw*1.2; ctx.beginPath(); ctx.moveTo(lc1.x,lc1.y-sLift); ctx.quadraticCurveTo(lcm.x,lcm.y,lc2.x,lc2.y-sLift); ctx.stroke();
     // 입 벌어짐 → 안쪽 어둠 + 자연스러운 윗니
     const mOpen=Math.abs(map(P[13]).y-map(P[14]).y);
     if(mOpen>fH*0.035){ ctx.save(); smoothPoly(ctx,lipPts); ctx.clip();
@@ -1211,6 +1247,20 @@
       for(let kk=-2;kk<=2;kk++){ const xx=lcm.x+kk*fW*0.045; ctx.beginPath(); ctx.moveTo(xx,u13.y+fH*0.003); ctx.lineTo(xx,u13.y+th*0.85); ctx.stroke(); }
       ctx.restore(); }
     ctx.strokeStyle=PAL.line; ctx.lineWidth=lw*0.85; smoothPoly(ctx,lipPts); ctx.stroke();
+    // 웃는 표정: 입꼬리 보조개 + 광대(볼) 올라감
+    if(smileK>0.15){ ctx.save(); ctx.lineCap="round"; const lift=fH*0.055*smileK;
+      ctx.globalAlpha=0.5*st.shade; ctx.strokeStyle=shade(skinSh2,-0.1); ctx.lineWidth=lw*0.8;
+      ctx.beginPath(); ctx.moveTo(lc1.x,lc1.y); ctx.quadraticCurveTo(lc1.x-fW*0.022,lc1.y-lift*0.7,lc1.x-fW*0.006,lc1.y-lift); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(lc2.x,lc2.y); ctx.quadraticCurveTo(lc2.x+fW*0.022,lc2.y-lift*0.7,lc2.x+fW*0.006,lc2.y-lift); ctx.stroke();
+      ctx.globalAlpha=0.16*smileK; ctx.fillStyle=skinHi; try{ctx.filter="blur("+Math.max(1,fW*0.02)+"px)";}catch(_){}
+      for(const cx2 of [lc1.x-fW*0.045, lc2.x+fW*0.045]){ ctx.beginPath(); ctx.ellipse(cx2, lcm.y-fH*0.065, fW*0.07, fH*0.05,0,0,Math.PI*2); ctx.fill(); }
+      ctx.restore(); }
+    // 시무룩/울상: 입꼬리 처짐선
+    if(sadK>0.18){ ctx.save(); ctx.lineCap="round"; const drop=fH*0.05*sadK;
+      ctx.globalAlpha=0.5*st.shade; ctx.strokeStyle=shade(skinSh2,-0.1); ctx.lineWidth=lw*0.8;
+      ctx.beginPath(); ctx.moveTo(lc1.x,lc1.y); ctx.quadraticCurveTo(lc1.x-fW*0.02,lc1.y+drop*0.7,lc1.x-fW*0.004,lc1.y+drop); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(lc2.x,lc2.y); ctx.quadraticCurveTo(lc2.x+fW*0.02,lc2.y+drop*0.7,lc2.x+fW*0.004,lc2.y+drop); ctx.stroke();
+      ctx.restore(); }
 
     // 인중(philtrum) — 코밑~윗입술, 길이 개인차 반영
     try{ const philLen=Math.max(fH*0.004,Math.abs(ulTop.y-n2.y)); const pw=mouthW*0.10;
@@ -1222,17 +1272,22 @@
     // ===== 8.5) 얼굴 디테일 — 팔자주름·눈밑·이마 하이라이트 =====
     try{ ctx.save(); ctx.lineCap="round";
       // 팔자주름(코→입꼬리)
-      ctx.globalAlpha=0.22*st.shade; ctx.strokeStyle=skinSh2; ctx.lineWidth=lw*0.9;
+      ctx.globalAlpha=0.22*st.shade*(1-0.85*childness); ctx.strokeStyle=skinSh2; ctx.lineWidth=lw*0.9;
       ctx.beginPath(); ctx.moveTo(nL.x-fW*0.008, nL.y); ctx.quadraticCurveTo(nL.x-fW*0.03,(nL.y+lc1.y)/2, lc1.x-fW*0.004, lc1.y+fH*0.006); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(nR.x+fW*0.008, nR.y); ctx.quadraticCurveTo(nR.x+fW*0.03,(nR.y+lc2.y)/2, lc2.x+fW*0.004, lc2.y+fH*0.006); ctx.stroke();
       // 눈밑(옅은 그늘)
-      ctx.globalAlpha=0.15*st.shade; ctx.lineWidth=lw*0.8;
+      ctx.globalAlpha=0.15*st.shade*(1-0.9*childness); ctx.lineWidth=lw*0.8;
       for(const eb of [[33,133,145],[263,362,374]]){ if(!P[eb[0]]||!P[eb[1]]||!P[eb[2]]) continue; const po=map(P[eb[0]]),pi=map(P[eb[1]]),pb=map(P[eb[2]]); ctx.beginPath(); ctx.moveTo(po.x,po.y+fH*0.008); ctx.quadraticCurveTo(pb.x,pb.y+fH*0.018,pi.x,pi.y+fH*0.008); ctx.stroke(); }
       ctx.restore();
       // 이마 하이라이트(빛 방향 일관)
       if(P[10]){ const fh=map(P[10]); ctx.save(); try{ ctx.filter="blur("+Math.max(1,fW*0.022)+"px)"; }catch(_){}
         ctx.globalAlpha=0.26*(st.hi||0.9)*st.shade; ctx.fillStyle=skinHi;
         ctx.beginPath(); ctx.ellipse(fh.x-fW*0.04, fh.y+fH*0.06, fW*0.15, fH*0.085, -0.18,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+      // 어린이 볼살(통통한 볼) — 은은한 하이라이트
+      if(childness>0.25){ ctx.save(); try{ ctx.filter="blur("+Math.max(1,fW*0.025)+"px)"; }catch(_){}
+        ctx.globalAlpha=0.22*childness; ctx.fillStyle=skinHi;
+        for(const ci of [50,280]){ if(!P[ci]) continue; const cp=map(P[ci]); ctx.beginPath(); ctx.ellipse(cp.x, cp.y+fH*0.02, fW*0.10, fH*0.07,0,0,Math.PI*2); ctx.fill(); }
+        ctx.restore(); }
     }catch(_){}
     // ===== 9) 앞머리(합성, 사이드 스윕) — 실제 머리 없을 때만 =====
     if(!hideSynthHair){ ctx.fillStyle=hair; ctx.beginPath();
@@ -1294,8 +1349,8 @@
     const rgb=cand.length? cand[0][1].rgb : [60,50,45];
     return {must:m, chin:c, jaw:(jl+jr)/2, rgb};
   }
-  function drawFaceShade(ctx, P, map, fW, fH, st, skinSh){
-    const a=0.18*(st.shade||0.6);
+  function drawFaceShade(ctx, P, map, fW, fH, st, skinSh, childness){
+    childness=childness||0; const a=0.18*(st.shade||0.6)*(1-0.55*childness);
     ctx.save();
     try{ ctx.filter="blur("+Math.max(1,fW*0.018)+"px)"; }catch(_){}
     ctx.fillStyle=skinSh; ctx.globalAlpha=a;
@@ -1570,7 +1625,7 @@
     if(gameMode==="timing"){ const ph=(performance.now()%BEAT_MS)/BEAT_MS, off=Math.min(ph,1-ph);
       if(off>0.17){ lastJudge={text:"MISS",color:"#FF2E4D",born:performance.now()}; combo=0; perfectStreak=0; tMiss++; el("comboNum").textContent="0"; el("comboBadge").classList.remove("show"); shakeMag=Math.max(shakeMag,6); ensureAudio(); return; }
       else if(off<0.07){ perfectStreak++; tPerfect++; timingMul=1.5+Math.min(0.7,perfectStreak*0.08); comboBonus=Math.min(4,Math.floor(perfectStreak/2));
-        lastJudge={text: perfectStreak>=2? "PERFECT x"+perfectStreak : "PERFECT", color:"#FFD23F", born:performance.now()}; ensureAudio(); playPerfect(perfectStreak);
+        lastJudge={text: perfectStreak>=2? "PERFECT x"+perfectStreak : "PERFECT", color:"#FFD23F", born:performance.now()}; ensureAudio(); playPerfect(perfectStreak); if(perfectStreak>=2) triggerGlad();
         if(perfectStreak>gameRecords.timingBestStreak){ gameRecords.timingBestStreak=perfectStreak; el("mTiming").textContent=perfectStreak; saveGame(); } }
       else { perfectStreak=0; tGood++; lastJudge={text:"GOOD",color:"#4ADE80",born:performance.now()}; } }
     const feverNow=(gameMode==="speed" && performance.now()<feverUntil), feverMul=feverNow?2:1;
@@ -1578,13 +1633,14 @@
     hitPulse=1; // 타격 스쿼시 애니메이션
     warps.push({born:performance.now(), dur:460, side});
     const step=DENT_STEP*hp.dent*timingMul*feverMul; if(side==="L") dentL=Math.min(DENT_MAX,dentL+step); else dentR=Math.min(DENT_MAX,dentR+step);
+    moodSad=dmgLevel(); if(mode==="photo"){ const ms=Math.round(moodSad*3); if(ms!==__moodStep){ __moodStep=ms; rerenderPhotoMood(); } }
     const dCur=side==="L"?dentL:dentR, bloody=dCur>=hp.bloodAt;
     effects.push(makePalm(side)); effects.push(makeText(target)); spawnParticles(target, bloody);
     if(feverNow){ spawnParticles(target, true); effects.push(makeText(target)); shakeMag=Math.max(shakeMag, hp.shake*1.7); }
     if(bloody) spawnBlood(target, hp);
     shakeMag=hp.shake; shakeRot=(side==="L"?1:-1)*0.035;
-    const now=performance.now(); combo=(now-lastHit<1500)?combo+1:1; if(comboBonus) combo+=comboBonus; lastHit=now; total++; best=Math.max(best,combo);
-    if(gameMode==="speed"){ const fever=now<feverUntil; gauge=Math.min(1, gauge + (fever?0.10:0.075)); if(gauge>=1 && !fever){ feverUntil=now+2200; gauge=0.25; lastJudge={text:"FEVER!",color:"#FF2E4D",born:now}; shakeMag=Math.max(shakeMag,20); speedFeverRun++; if(speedFeverRun>gameRecords.speedFeverBest){ gameRecords.speedFeverBest=speedFeverRun; el("mSpeed").textContent=speedFeverRun; saveGame(); } try{playStamp();}catch(_){}}}
+    const now=performance.now(); combo=(now-lastHit<1500)?combo+1:1; if(comboBonus) combo+=comboBonus; lastHit=now; total++; best=Math.max(best,combo); if(combo>0 && combo%5===0) triggerGlad(); if(combo>0 && combo%10===0) effects.push(makeBubble(BRAGS[(Math.random()*BRAGS.length)|0]));
+    if(gameMode==="speed"){ const fever=now<feverUntil; gauge=Math.min(1, gauge + (fever?0.10:0.075)); if(gauge>=1 && !fever){ feverUntil=now+2200; gauge=0.25; lastJudge={text:"FEVER!",color:"#FF2E4D",born:now}; shakeMag=Math.max(shakeMag,20); speedFeverRun++; if(speedFeverRun>gameRecords.speedFeverBest){ gameRecords.speedFeverBest=speedFeverRun; el("mSpeed").textContent=speedFeverRun; saveGame(); } try{playStamp();}catch(_){} triggerGlad(); effects.push(makeBubble("흥!"));}}
     el("mTotal").textContent=total; el("mBest").textContent=best;
     const cn=el("comboNum"); cn.textContent=combo; cn.classList.add("pop"); setTimeout(()=>cn.classList.remove("pop"),60);
     el("tapHint").classList.remove("show");
@@ -1601,6 +1657,21 @@
     return {dur,born,draw(now){ const e=(now-born)/dur; if(e>1) return; const s=1+e*0.8, a=1-e, yy=y-26*e;
       fx.save(); fx.globalAlpha=a; fx.translate(x,yy); fx.scale(s,s); fx.font='800 24px "Black Han Sans",sans-serif'; fx.textAlign="center"; fx.textBaseline="middle";
       fx.lineWidth=4; fx.strokeStyle="rgba(0,0,0,.6)"; fx.strokeText(word,0,0); fx.fillStyle="#FFD23F"; fx.fillText(word,0,0); fx.restore(); }}; }
+  function makeBubble(word){ const dur=850, born=performance.now();
+    const ax=(cheekR?cheekR.x:300), ay=(noseP?noseP.y:240), rr=(cheekR_px||50);
+    const x=ax+rr*1.25, y=ay-rr*1.7;
+    return {dur,born,draw(now){ const e=(now-born)/dur; if(e>1) return;
+      const pop=e<0.18? (e/0.18):1, s=(0.5+0.5*Math.min(1,pop*1.15))*(1+(e>0.18?Math.sin((e-0.18)*7)*0.025:0)), a=e<0.78?1:1-(e-0.78)/0.22;
+      fx.save(); fx.globalAlpha=a; fx.translate(x,y); fx.scale(s,s);
+      fx.font='800 30px "Black Han Sans",sans-serif'; fx.textAlign="center"; fx.textBaseline="middle";
+      const tw=fx.measureText(word).width, bw=tw+34, bh=48;
+      fx.fillStyle="#fff"; fx.strokeStyle="#222"; fx.lineWidth=3;
+      if(fx.roundRect){ fx.beginPath(); fx.roundRect(-bw/2,-bh/2,bw,bh,14); } else { fx.beginPath(); fx.rect(-bw/2,-bh/2,bw,bh); }
+      fx.fill(); fx.stroke();
+      fx.beginPath(); fx.moveTo(-bw*0.16,bh/2-2); fx.lineTo(-bw*0.30,bh/2+15); fx.lineTo(-bw*0.02,bh/2-2); fx.closePath(); fx.fillStyle="#fff"; fx.fill(); fx.stroke();
+      fx.fillStyle="#FF2E4D"; fx.fillText(word,0,1);
+      fx.restore(); }};
+  }
   function spawnParticles(t0, bloody){ const born=performance.now(), dur=520, parts=[]; const n=bloody?13:9; const sg=bloody?6:4;
     for(let i=0;i<n;i++){ const ang=Math.random()*Math.PI*2, sp=2+Math.random()*sg; parts.push({x:t0.x,y:t0.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp-2,r:(bloody?2.4:2)+Math.random()*2}); }
     effects.push({dur,born,draw(now){ const e=(now-born)/dur; if(e>1) return; fx.save(); for(const p of parts){ const px=p.x+p.vx*(e*30), py=p.y+p.vy*(e*30)+(e*e*(bloody?56:40)); fx.globalAlpha=1-e; fx.fillStyle= bloody ? (Math.random()<0.8?"#b3122a":"#7a0a18") : (Math.random()<0.5?"#FFD23F":"#FF2E4D"); fx.beginPath(); fx.arc(px,py,p.r,0,Math.PI*2); fx.fill(); } fx.restore(); }}); }
@@ -1681,7 +1752,7 @@
     faceFound=true; liveLM=result.faceLandmarks[0]; const P=caricatureEDFM(liveLM, ST());
     if((segTick++ % SEG_EVERY)===0) updateLiveHair(now);
     const map=p=>({x:(1-p.x)*CW(), y:p.y*CH()});
-    drawCaricature(srcCtx,P,CW(),CH(),map,styledST(),false,{hairScreen:hairLive}); texDirty=true;
+    drawCaricature(srcCtx,P,CW(),CH(),map,styledST(),false,{hairScreen:hairLive, sad:moodSad, glad:currentGlad()}); texDirty=true;
     const f=featurePts(P,map); cheekL=f.L; cheekR=f.R; noseP=f.nose; mouthP=f.mouth; cheekR_px=Math.max(34,Math.min(180,f.sep*0.42));
   }
 
@@ -1795,10 +1866,15 @@
     const scale=(PW*headFrac)/fwpx; const headCx=PW/2, headCy=PH*0.40;
     const mapF=pn=>({x:headCx+(pn.x*photoW-fcx)*scale, y:headCy+(pn.y*photoH-fcy)*scale});
     WW=PW; WH=PH; workCanvas.width=PW; workCanvas.height=PH;
-    drawCaricature(workCtx,P,PW,PH,mapF,styledST(),false,{hair:hairLayer, hairPoly:photoHairPoly});
+    drawCaricature(workCtx,P,PW,PH,mapF,styledST(),false,{hair:hairLayer, hairPoly:photoHairPoly, sad:moodSad, glad:currentGlad()});
+    __photoP=P; __photoMapF=mapF;
     const f=featurePts(P,mapF); cheekFullL=f.L; cheekFullR=f.R; noseFull=f.nose; mouthFull=f.mouth;
     faceBox={x0:0,y0:0,x1:PW,y1:PH};
   }
+  function rerenderPhotoMood(){ if(mode!=="photo"||!__photoP||!__photoMapF) return; try{ drawCaricature(workCtx,__photoP,WW,WH,__photoMapF,styledST(),false,{hair:hairLayer, hairPoly:photoHairPoly, sad:moodSad, glad:currentGlad()}); applyPhotoView(); }catch(_){} }
+  function currentGlad(){ const t=performance.now(); return t<gladUntil? Math.min(1,(gladUntil-t)/GLAD_DUR):0; }
+  function triggerGlad(){ gladUntil=performance.now()+GLAD_DUR;
+    if(mode==="photo"){ const t=performance.now(); if(t-__lastGladRender>500){ __lastGladRender=t; rerenderPhotoMood(); if(__gladRevertT) clearTimeout(__gladRevertT); __gladRevertT=setTimeout(rerenderPhotoMood, GLAD_DUR+50); } } }
   function fitPortrait(){ pview.A=WW/WH; setDispForAspect(pview.A); pview.cx=WW/2; pview.cy=WH/2; pview.hh=WH/2; pview.hhMin=Math.max(20,WH*0.18); pview.hhMax=WH/2; setSize(pview.dispW,pview.dispH); setStageAspect(pview.A); applyPhotoView(); }
   async function handleFile(file, forced=null){
     if(!file||!file.type.startsWith("image/")){ setStatus("fail","이미지 파일만 가능"); return; }
@@ -1845,8 +1921,8 @@
     if(segmenter && res && res.faceLandmarks && res.faceLandmarks.length){
       try{ setStatus("loading","머리카락 분석 중…"); await ensureSegMode("IMAGE"); const seg=segmenter.segment(tmpCanvas); const m=seg.categoryMask; const mw=m.width, mh=m.height; const arr=m.getAsUint8Array(); m.close&&m.close(); seg.close&&seg.close();
         const col=sampleColors(tmpCanvas, arr, mw, mh); photoGray=!!col.gray;
-        let hairRGB=col.hair||hexToRGB(ST().hair); if(col.gray) hairRGB=brownize(hairRGB,0.30);
-        if(col.skin) avgSkin=toHex(col.skin); avgHair=toHex(hairRGB);
+        let hairRGB=col.hair||hexToRGB(ST().hair); if(col.gray) hairRGB=brownize(hairRGB,0.6);
+        if(col.skin) avgSkin=toHex(col.gray? warmSkin(col.skin) : col.skin); avgHair=toHex(hairRGB);
         // 귀걸이 인식(귀 아래 분리 블롭)
         try{ const lm=res.faceLandmarks[0]; if(lm[234]&&lm[454]){ const er=detectEarrings(arr, mw, mh, [{x:lm[234].x,y:lm[234].y},{x:lm[454].x,y:lm[454].y}]); photoEarrings={e234:er[0], e454:er[1]}; } }catch(_){}
         if(col.hairN > mw*mh*0.012){ photoHairPoly=buildHairPoly(arr, mw, mh); if(!photoHairPoly) hairLayer=buildHairLayer(arr, mw, mh, hairRGB); }
@@ -1882,7 +1958,7 @@
   function zoomBy(f){ if(WW===0) return; pview.hh/=f; applyPhotoView(); }
 
   /* ─────────── 모드 ─────────── */
-  function clearPlay(){ effects.length=0; warps.length=0; combo=0; dentL=dentR=0; ended=false; gauge=0; feverUntil=0; hitPulse=0; lastJudge=null; perfectStreak=0; speedFeverRun=0; tPerfect=0; tGood=0; tMiss=0; lastBeatIdx=-1; const gf=el("gaugeFill"); if(gf) gf.style.width="0%"; const gl=el("gaugeLabel"); if(gl) gl.textContent=""; glCanvas.style.transform="none"; fxCanvas.style.transform="none"; el("comboNum").textContent="0"; el("endOverlay").classList.remove("show"); el("comboBadge").classList.remove("show"); el("tapHint").classList.remove("show"); }
+  function clearPlay(){ effects.length=0; warps.length=0; combo=0; dentL=dentR=0; ended=false; moodSad=0; __moodStep=-1; if(mode==="photo") rerenderPhotoMood(); gauge=0; feverUntil=0; hitPulse=0; lastJudge=null; perfectStreak=0; speedFeverRun=0; tPerfect=0; tGood=0; tMiss=0; lastBeatIdx=-1; const gf=el("gaugeFill"); if(gf) gf.style.width="0%"; const gl=el("gaugeLabel"); if(gl) gl.textContent=""; glCanvas.style.transform="none"; fxCanvas.style.transform="none"; el("comboNum").textContent="0"; el("endOverlay").classList.remove("show"); el("comboBadge").classList.remove("show"); el("tapHint").classList.remove("show"); }
   function switchMode(m){ if(m===mode) return; cancelRun(); mode=m; hairLayer=null; avgSkin=null; avgHair=null; hairLive=null;
     el("mWebcam").classList.toggle("active",m==="webcam"); el("mPhoto").classList.toggle("active",m==="photo");
     if(cam.srcObject){ cam.srcObject.getTracks().forEach(t=>t.stop()); cam.srcObject=null; }
@@ -2001,7 +2077,7 @@
   el("taStart").addEventListener("click",startRun);
   el("resRetry").addEventListener("click",startRun);
   el("resClose").addEventListener("click",()=>el("resultOverlay").classList.remove("show"));
-  el("endRetry").addEventListener("click",()=>{ dentL=dentR=0; ended=false; el("endOverlay").classList.remove("show"); });
+  el("endRetry").addEventListener("click",()=>{ dentL=dentR=0; ended=false; moodSad=0; __moodStep=-1; if(mode==="photo") rerenderPhotoMood(); el("endOverlay").classList.remove("show"); });
   el("statBtn").addEventListener("click",()=>{ renderStats(); el("statModal").classList.remove("hidden"); });
   el("statClose").addEventListener("click",()=>el("statModal").classList.add("hidden"));
   el("statReset").addEventListener("click",async()=>{ stats={}; await Store.set(STAT_KEY,stats); el("mToday").textContent="0"; renderStats(); });
